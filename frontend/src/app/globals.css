@@ -1,0 +1,383 @@
+@import "tailwindcss";
+
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+  }
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+/* Comprehensive Dark Mode Styles */
+.dark {
+  --background: #0a0a0a;
+  --foreground: #ededed;
+}
+
+.dark body {
+  background: #0a0a0a !important;
+  color: #ededed !important;
+}
+
+/* Dark mode for all backgrounds */
+.dark * {
+  color-scheme: dark;
+}
+
+/* Dark mode for specific Tailwind classes */
+.dark .bg-\[#ecf0f3\] {
+  background-color: #1a1a1a !important;
+}
+
+.dark .bg-\[#e0e0e0\] {
+  background-color: #1a1a1a !important;
+}
+
+.dark .bg-gray-50 {
+  background-color: #1a1a1a !important;
+}
+
+.dark .bg-white {
+  background-color: #1a1a1a !important;
+}
+
+/* Dark mode for all text colors */
+.dark .text-gray-800 {
+  color: #ededed !important;
+}
+
+.dark .text-gray-700 {
+  color: #d1d5db !important;
+}
+
+.dark .text-gray-600 {
+  color: #9ca3af !important;
+}
+
+.dark .text-gray-500 {
+  color: #6b7280 !important;
+}
+
+.dark .text-gray-400 {
+  color: #9ca3af !important;
+}
+
+/* Dark mode for all shadows - using attribute selectors to avoid CSS parsing issues */
+.dark [class*="shadow-[8px_8px_16px_#cbced1,-8px_-8px_16px_#ffffff]"] {
+  box-shadow: 8px 8px 16px #0f0f0f, -8px -8px 16px #252525 !important;
+}
+
+.dark [class*="shadow-[4px_4px_8px_#cbced1,-4px_-4px_8px_#ffffff]"] {
+  box-shadow: 4px 4px 8px #0f0f0f, -4px -4px 8px #252525 !important;
+}
+
+.dark [class*="shadow-[5px_5px_10px_#cbced1,-5px_-5px_10px_#ffffff]"] {
+  box-shadow: 5px 5px 10px #0f0f0f, -5px -5px 10px #252525 !important;
+}
+
+.dark [class*="shadow-[inset_5px_5px_10px_#cbced1,inset_-5px_-5px_10px_#ffffff]"] {
+  box-shadow: inset 5px 5px 10px #0f0f0f, inset -5px -5px 10px #252525 !important;
+}
+
+.dark [class*="shadow-[inset_4px_4px_8px_#cbced1,inset_-4px_-4px_8px_#ffffff]"] {
+  box-shadow: inset 4px 4px 8px #0f0f0f, inset -4px -4px 8px #252525 !important;
+}
+
+.dark [class*="shadow-[inset_3px_3px_6px_#cbced1,inset_-3px_-3px_6px_#ffffff]"] {
+  box-shadow: inset 3px 3px 6px #0f0f0f, inset -3px -3px 6px #252525 !important;
+}
+
+.dark [class*="shadow-[inset_2px_2px_4px_#cbced1,inset_-2px_-2px_4px_#ffffff]"] {
+  box-shadow: inset 2px 2px 4px #0f0f0f, inset -2px -2px 4px #252525 !important;
+}
+
+/* Additional shadow variations for dark mode */
+.dark [class*="shadow-[3px_3px_6px_#cbced1,-3px_-3px_6px_#ffffff]"] {
+  box-shadow: 3px 3px 6px #0f0f0f, -3px -3px 6px #252525 !important;
+}
+
+.dark [class*="shadow-[2px_2px_4px_#cbced1,-2px_-2px_4px_#ffffff]"] {
+  box-shadow: 2px 2px 4px #0f0f0f, -2px -2px 4px #252525 !important;
+}
+
+.dark [class*="shadow-[6px_6px_12px_#cbced1,-6px_-6px_12px_#ffffff]"] {
+  box-shadow: 6px 6px 12px #0f0f0f, -6px -6px 12px #252525 !important;
+}
+
+/* Dark mode for borders */
+.dark .border-gray-300 {
+  border-color: #374151 !important;
+}
+
+.dark .border-gray-200 {
+  border-color: #4b5563 !important;
+}
+
+/* Dark mode for hover states */
+.dark .hover\:bg-\[#d8d8d8\]:hover {
+  background-color: #2a2a2a !important;
+}
+
+.dark .hover\:bg-gray-200:hover {
+  background-color: #2a2a2a !important;
+}
+
+/* Dark mode for placeholder text */
+.dark .placeholder-gray-500::placeholder {
+  color: #6b7280 !important;
+}
+
+.dark .placeholder-gray-400::placeholder {
+  color: #9ca3af !important;
+}
+
+/* Dark mode for status badges */
+.dark .bg-green-50 {
+  background-color: #064e3b !important;
+}
+
+.dark .text-green-700 {
+  color: #10b981 !important;
+}
+
+.dark .text-red-700 {
+  color: #ef4444 !important;
+}
+
+/* Dark mode for notification badge */
+.dark .bg-red-500 {
+  background-color: #dc2626 !important;
+}
+
+/* Dark mode for checkboxes */
+.dark input[type="checkbox"] {
+  accent-color: #10b981 !important;
+}
+
+/* Dark mode for scrollbars */
+.dark ::-webkit-scrollbar {
+  width: 8px;
+}
+
+.dark ::-webkit-scrollbar-track {
+  background: #1a1a1a;
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: #374151;
+  border-radius: 4px;
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: #4b5563;
+}
+
+/* Dark mode for all elements with specific background colors */
+.dark [style*="background-color: #ecf0f3"] {
+  background-color: #1a1a1a !important;
+}
+
+.dark [style*="background-color: #e0e0e0"] {
+  background-color: #1a1a1a !important;
+}
+
+/* Dark mode for all divs and sections */
+.dark div {
+  background-color: inherit;
+}
+
+.dark section {
+  background-color: inherit;
+}
+
+.dark header {
+  background-color: #1a1a1a !important;
+}
+
+.dark main {
+  background-color: #0a0a0a !important;
+}
+
+/* Dark mode for tables */
+.dark table {
+  background-color: #1a1a1a !important;
+}
+
+.dark thead {
+  background-color: #1a1a1a !important;
+}
+
+.dark tbody {
+  background-color: #1a1a1a !important;
+}
+
+.dark tr {
+  background-color: #1a1a1a !important;
+}
+
+.dark tr:hover {
+  background-color: #2a2a2a !important;
+}
+
+.dark td {
+  background-color: inherit !important;
+}
+
+.dark th {
+  background-color: inherit !important;
+}
+
+/* Dark mode for buttons */
+.dark button {
+  background-color: #1a1a1a !important;
+  color: #ededed !important;
+}
+
+.dark input {
+  background-color: #1a1a1a !important;
+  color: #ededed !important;
+}
+
+/* Dark mode for links */
+.dark a {
+  color: #60a5fa !important;
+}
+
+.dark a:hover {
+  color: #93c5fd !important;
+}
+
+/* Aggressive dark mode - targets all elements */
+.dark * {
+  color-scheme: dark;
+}
+
+/* Force dark backgrounds on all elements */
+.dark div[class*="bg-"] {
+  background-color: #1a1a1a !important;
+}
+
+.dark section[class*="bg-"] {
+  background-color: #1a1a1a !important;
+}
+
+.dark header[class*="bg-"] {
+  background-color: #1a1a1a !important;
+}
+
+.dark main[class*="bg-"] {
+  background-color: #0a0a0a !important;
+}
+
+/* Force dark text on all elements */
+.dark *[class*="text-gray"] {
+  color: #ededed !important;
+}
+
+/* Force dark shadows on all elements */
+.dark *[class*="shadow-"] {
+  box-shadow: 4px 4px 8px #0f0f0f, -4px -4px 8px #252525 !important;
+}
+
+/* Dark mode for all input elements */
+.dark input[type="text"],
+.dark input[type="email"],
+.dark input[type="password"],
+.dark input[type="search"] {
+  background-color: #1a1a1a !important;
+  color: #ededed !important;
+  border-color: #374151 !important;
+}
+
+/* Dark mode for all buttons */
+.dark button[class*="bg-"] {
+  background-color: #1a1a1a !important;
+  color: #ededed !important;
+}
+
+/* Dark mode for all cards and containers */
+.dark div[class*="rounded"] {
+  background-color: #1a1a1a !important;
+}
+
+/* Dark mode for all table elements */
+.dark table,
+.dark thead,
+.dark tbody,
+.dark tr,
+.dark td,
+.dark th {
+  background-color: #1a1a1a !important;
+  color: #ededed !important;
+}
+
+/* Dark mode for all form elements */
+.dark form {
+  background-color: #1a1a1a !important;
+}
+
+.dark fieldset {
+  background-color: #1a1a1a !important;
+  border-color: #374151 !important;
+}
+
+/* Dark mode for all list elements */
+.dark ul,
+.dark ol,
+.dark li {
+  background-color: #1a1a1a !important;
+  color: #ededed !important;
+}
+
+/* Dark mode for all paragraph and heading elements */
+.dark p,
+.dark h1,
+.dark h2,
+.dark h3,
+.dark h4,
+.dark h5,
+.dark h6 {
+  color: #ededed !important;
+}
+
+/* Dark mode for all span elements */
+.dark span {
+  color: #ededed !important;
+}
+
+/* Dark mode for all label elements */
+.dark label {
+  color: #ededed !important;
+}
+
+/* Dark mode for all select elements */
+.dark select {
+  background-color: #1a1a1a !important;
+  color: #ededed !important;
+  border-color: #374151 !important;
+}
+
+/* Dark mode for all textarea elements */
+.dark textarea {
+  background-color: #1a1a1a !important;
+  color: #ededed !important;
+  border-color: #374151 !important;
+}
+

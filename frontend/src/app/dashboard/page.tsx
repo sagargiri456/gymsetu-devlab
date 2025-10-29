@@ -1,5 +1,6 @@
 "use client";
 import React from 'react';
+import Link from 'next/link';
 import { MdPeople, MdOutlineSportsGymnastics, MdOutlinePayment, MdMonetizationOn, MdArrowUpward } from 'react-icons/md';
 import { FaUserCircle } from 'react-icons/fa';
 
@@ -109,6 +110,28 @@ const DashboardPage: React.FC = () => {
         <h4 className="text-3xl font-bold text-gray-800 drop-shadow-[1px_1px_0px_#fff]">
           Hi, Welcome back, Admin
         </h4>
+      </div>
+
+      {/* CTA Buttons for Register and Login */}
+      <div className="mb-8 flex flex-col sm:flex-row gap-4">
+        <Link href="/register" className="flex-1 sm:flex-initial">
+          <div className="p-6 rounded-3xl bg-[#ecf0f3] shadow-[8px_8px_16px_#cbced1,-8px_-8px_16px_#ffffff] hover:shadow-[inset_4px_4px_8px_#cbced1,inset_-4px_-4px_8px_#ffffff] transition-all duration-300 text-center cursor-pointer">
+            <h5 className="text-lg font-bold text-gray-800 mb-2">New to GymSetu?</h5>
+            <p className="text-sm text-gray-600 mb-4 opacity-80">Create your account and start managing your gym today</p>
+            <button className="px-6 py-3 rounded-xl font-semibold text-white bg-gradient-to-r from-[#FFC107] via-[#FF8A00] to-[#E91E63] shadow-[4px_4px_8px_#cbced1,-4px_-4px_8px_#ffffff] hover:opacity-90 transition-all">
+              Register Now
+            </button>
+          </div>
+        </Link>
+        <Link href="/login" className="flex-1 sm:flex-initial">
+          <div className="p-6 rounded-3xl bg-[#ecf0f3] shadow-[8px_8px_16px_#cbced1,-8px_-8px_16px_#ffffff] hover:shadow-[inset_4px_4px_8px_#cbced1,inset_-4px_-4px_8px_#ffffff] transition-all duration-300 text-center cursor-pointer">
+            <h5 className="text-lg font-bold text-gray-800 mb-2">Already have an account?</h5>
+            <p className="text-sm text-gray-600 mb-4 opacity-80">Sign in to access your dashboard and manage your gym</p>
+            <button className="px-6 py-3 rounded-xl font-semibold text-gray-800 bg-[#ecf0f3] shadow-[4px_4px_8px_#cbced1,-4px_-4px_8px_#ffffff] hover:shadow-[inset_4px_4px_8px_#cbced1,inset_-4px_-4px_8px_#ffffff] transition-all">
+              Login
+            </button>
+          </div>
+        </Link>
       </div>
 
       {/* Grid for Stats Cards (4 columns on desktop) */}

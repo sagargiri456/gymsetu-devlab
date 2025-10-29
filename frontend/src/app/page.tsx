@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import { motion } from "framer-motion";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { 
@@ -91,12 +92,26 @@ export default function LandingPage() {
           Your all-in-one gym management platform — manage workouts, track progress, and
           connect with your fitness community effortlessly.
         </p>
-        <motion.button
-          whileTap={{ scale: 0.95 }}
-          className={`px-8 py-3 text-lg font-medium rounded-2xl transition-all duration-300 ${baseShadow} ${insetShadow}`}
-        >
-          Get Started
-        </motion.button>
+        <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
+          <Link href="/register">
+            <motion.button
+              whileTap={{ scale: 0.95 }}
+              whileHover={{ scale: 1.05 }}
+              className={`px-8 py-3 text-lg font-semibold rounded-2xl transition-all duration-300 ${baseShadow} ${insetShadow} bg-gradient-to-r from-[#FFC107] via-[#FF8A00] to-[#E91E63] text-white`}
+            >
+              Register Now
+            </motion.button>
+          </Link>
+          <Link href="/login">
+            <motion.button
+              whileTap={{ scale: 0.95 }}
+              whileHover={{ scale: 1.05 }}
+              className={`px-8 py-3 text-lg font-semibold rounded-2xl transition-all duration-300 ${baseShadow} ${insetShadow}`}
+            >
+              Login
+            </motion.button>
+          </Link>
+        </div>
       </section>
 
       {/* === Features Section === */}

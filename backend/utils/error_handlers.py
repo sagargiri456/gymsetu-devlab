@@ -1,6 +1,7 @@
 from flask import jsonify, request
 from werkzeug.exceptions import HTTPException
 from sqlalchemy.exc import SQLAlchemyError, IntegrityError
+import os
 from utils.validation import ValidationError
 from utils.validation import ValidationError
 from flask_jwt_extended.exceptions import JWTExtendedException
@@ -37,54 +38,75 @@ def register_error_handlers(app):
 
     @app.errorhandler(IntegrityError)
     def handle_integrity_error(error):
-        """Handle database integrity errors"""
+        """Handle database integrity errors (SQLite/PostgreSQL)."""
         logger.error(f"Database integrity error: {str(error)}")
 
-        # Check for common integrity errors
-        error_msg = str(error.orig)
-        if "UNIQUE constraint failed" in error_msg:
-            if "email" in error_msg:
-                return (
-                    jsonify(
-                        {"error": "Database Error", "message": "Email already exists"}
-                    ),
-                    409,
-                )
-            else:
-                return (
-                    jsonify(
-                        {"error": "Database Error", "message": "Duplicate entry found"}
-                    ),
-                    409,
-                )
-        elif "FOREIGN KEY constraint failed" in error_msg:
+        expose_details = os.getenv("EXPOSE_ERRORS", "false").lower() == "true"
+
+        # Prefer database-agnostic detection using SQLSTATE when available (psycopg2)
+        pgcode = getattr(getattr(error, "orig", None), "pgcode", None)
+        if pgcode == "23505":  # unique_violation
+            # Try to provide a friendlier message
             return (
-                jsonify(
-                    {
-                        "error": "Database Error",
-                        "message": "Referenced record not found",
-                    }
-                ),
+                jsonify({
+                    "error": "Database Error",
+                    "message": "Duplicate entry found (unique constraint)",
+                }),
+                409,
+            )
+        if pgcode == "23503":  # foreign_key_violation
+            return (
+                jsonify({
+                    "error": "Database Error",
+                    "message": "Referenced record not found (foreign key)",
+                }),
                 400,
             )
-        else:
+
+        # Fallback to string matching for SQLite or generic engines
+        error_msg = str(getattr(error, "orig", error))
+        if "UNIQUE constraint failed" in error_msg or "duplicate key value violates unique constraint" in error_msg:
             return (
-                jsonify(
-                    {"error": "Database Error", "message": "Data integrity violation"}
-                ),
+                jsonify({
+                    "error": "Database Error",
+                    "message": "Duplicate entry found (unique constraint)",
+                }),
+                409,
+            )
+        if "FOREIGN KEY constraint" in error_msg:
+            return (
+                jsonify({
+                    "error": "Database Error",
+                    "message": "Referenced record not found (foreign key)",
+                }),
                 400,
             )
+
+        # Optionally expose original details when debugging
+        if expose_details:
+            return (
+                jsonify({
+                    "error": "Database Error",
+                    "message": "Data integrity violation",
+                    "details": error_msg,
+                }),
+                400,
+            )
+
+        return (
+            jsonify({"error": "Database Error", "message": "Data integrity violation"}),
+            400,
+        )
 
     @app.errorhandler(SQLAlchemyError)
     def handle_sqlalchemy_error(error):
-        """Handle SQLAlchemy errors"""
+        """Handle SQLAlchemy errors."""
         logger.error(f"SQLAlchemy error: {str(error)}")
-        return (
-            jsonify(
-                {"error": "Database Error", "message": "Database operation failed"}
-            ),
-            500,
-        )
+        expose_details = os.getenv("EXPOSE_ERRORS", "false").lower() == "true"
+        payload = {"error": "Database Error", "message": "Database operation failed"}
+        if expose_details:
+            payload["details"] = str(error)
+        return jsonify(payload), 500
 
     @app.errorhandler(ValueError)
     def handle_value_error(error):

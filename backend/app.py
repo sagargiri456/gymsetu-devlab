@@ -32,6 +32,15 @@ def create_app():
     logging.basicConfig(level=logging.INFO)
     logger = logging.getLogger(__name__)
     logger.info(f"JWT_SECRET_KEY set: {bool(app.config.get('JWT_SECRET_KEY'))}")
+    
+    # Log database connection info (without exposing sensitive data)
+    db_url = app.config.get('SQLALCHEMY_DATABASE_URI', '')
+    if db_url:
+        # Mask password in logs
+        parsed_db_url = db_url.split('@')[-1] if '@' in db_url else 'Not configured'
+        logger.info(f"Database configured: {parsed_db_url}")
+    else:
+        logger.error("DATABASE_URL is not set!")
 
     # init_app() is used to initialize the extensions with the app. just like middleware in express.
     # CORS configuration - supports local development and production deployments
@@ -67,7 +76,13 @@ def create_app():
         max_age=3600,  # Cache preflight requests for 1 hour
     )
 
+    # Initialize database with engine options
     db.init_app(app)
+    
+    # Apply SQLAlchemy engine options for production
+    if hasattr(Config, 'SQLALCHEMY_ENGINE_OPTIONS'):
+        app.config['SQLALCHEMY_ENGINE_OPTIONS'] = Config.SQLALCHEMY_ENGINE_OPTIONS
+    
     jwt.init_app(app)
 
     # Register error handlers
@@ -96,15 +111,23 @@ def create_app():
 
     # Import models and create tables after everything is registered
     with app.app_context():
-        from models.gym import Gym
-        from models.members import Member
-        from models.subscription import Subscription
-        from models.subscription_plan import SubscriptionPlan
-        from models.trainers import Trainer
-        from models.contest import Contest
-        from models.participants import Participant
+        try:
+            from models.gym import Gym
+            from models.members import Member
+            from models.subscription import Subscription
+            from models.subscription_plan import SubscriptionPlan
+            from models.trainers import Trainer
+            from models.contest import Contest
+            from models.participants import Participant
 
-        db.create_all()
+            # Test database connection
+            logger.info("Attempting to connect to database...")
+            db.create_all()
+            logger.info("Database tables created/verified successfully")
+        except Exception as e:
+            logger.error(f"Database initialization error: {str(e)}")
+            # Don't fail silently - raise the error so deployment fails if DB is misconfigured
+            raise
 
     return app
 

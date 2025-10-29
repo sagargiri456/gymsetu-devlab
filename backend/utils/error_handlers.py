@@ -48,48 +48,61 @@ def register_error_handlers(app):
         if pgcode == "23505":  # unique_violation
             # Try to provide a friendlier message
             return (
-                jsonify({
-                    "error": "Database Error",
-                    "message": "Duplicate entry found (unique constraint)",
-                }),
+                jsonify(
+                    {
+                        "error": "Database Error",
+                        "message": "Duplicate entry found (unique constraint)",
+                    }
+                ),
                 409,
             )
         if pgcode == "23503":  # foreign_key_violation
             return (
-                jsonify({
-                    "error": "Database Error",
-                    "message": "Referenced record not found (foreign key)",
-                }),
+                jsonify(
+                    {
+                        "error": "Database Error",
+                        "message": "Referenced record not found (foreign key)",
+                    }
+                ),
                 400,
             )
 
         # Fallback to string matching for SQLite or generic engines
         error_msg = str(getattr(error, "orig", error))
-        if "UNIQUE constraint failed" in error_msg or "duplicate key value violates unique constraint" in error_msg:
+        if (
+            "UNIQUE constraint failed" in error_msg
+            or "duplicate key value violates unique constraint" in error_msg
+        ):
             return (
-                jsonify({
-                    "error": "Database Error",
-                    "message": "Duplicate entry found (unique constraint)",
-                }),
+                jsonify(
+                    {
+                        "error": "Database Error",
+                        "message": "Duplicate entry found (unique constraint)",
+                    }
+                ),
                 409,
             )
         if "FOREIGN KEY constraint" in error_msg:
             return (
-                jsonify({
-                    "error": "Database Error",
-                    "message": "Referenced record not found (foreign key)",
-                }),
+                jsonify(
+                    {
+                        "error": "Database Error",
+                        "message": "Referenced record not found (foreign key)",
+                    }
+                ),
                 400,
             )
 
         # Optionally expose original details when debugging
         if expose_details:
             return (
-                jsonify({
-                    "error": "Database Error",
-                    "message": "Data integrity violation",
-                    "details": error_msg,
-                }),
+                jsonify(
+                    {
+                        "error": "Database Error",
+                        "message": "Data integrity violation",
+                        "details": error_msg,
+                    }
+                ),
                 400,
             )
 

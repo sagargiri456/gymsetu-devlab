@@ -32,12 +32,12 @@ def create_app():
     logging.basicConfig(level=logging.INFO)
     logger = logging.getLogger(__name__)
     logger.info(f"JWT_SECRET_KEY set: {bool(app.config.get('JWT_SECRET_KEY'))}")
-    
+
     # Log database connection info (without exposing sensitive data)
-    db_url = app.config.get('SQLALCHEMY_DATABASE_URI', '')
+    db_url = app.config.get("SQLALCHEMY_DATABASE_URI", "")
     if db_url:
         # Mask password in logs
-        parsed_db_url = db_url.split('@')[-1] if '@' in db_url else 'Not configured'
+        parsed_db_url = db_url.split("@")[-1] if "@" in db_url else "Not configured"
         logger.info(f"Database configured: {parsed_db_url}")
     else:
         logger.error("DATABASE_URL is not set!")
@@ -78,11 +78,11 @@ def create_app():
 
     # Initialize database with engine options
     db.init_app(app)
-    
+
     # Apply SQLAlchemy engine options for production
-    if hasattr(Config, 'SQLALCHEMY_ENGINE_OPTIONS'):
-        app.config['SQLALCHEMY_ENGINE_OPTIONS'] = Config.SQLALCHEMY_ENGINE_OPTIONS
-    
+    if hasattr(Config, "SQLALCHEMY_ENGINE_OPTIONS"):
+        app.config["SQLALCHEMY_ENGINE_OPTIONS"] = Config.SQLALCHEMY_ENGINE_OPTIONS
+
     jwt.init_app(app)
 
     # Register error handlers

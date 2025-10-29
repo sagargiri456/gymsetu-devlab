@@ -1,0 +1,373 @@
+{
+  "test_scenarios": {
+    "scenario_1_basic_setup": {
+      "description": "Basic gym setup with members, trainers, and one contest",
+      "steps": [
+        {
+          "step": 1,
+          "action": "Login",
+          "endpoint": "POST /api/auth/login",
+          "data": {
+            "email": "admin@gmail.com",
+            "password": "admin123"
+          }
+        },
+        {
+          "step": 2,
+          "action": "Add Member 1",
+          "endpoint": "POST /api/members/add_member",
+          "data": {
+            "name": "John Smith",
+            "email": "john.smith@example.com",
+            "phone": "555-0001",
+            "address": "123 Main Street",
+            "city": "New York",
+            "state": "NY",
+            "zip": "10001",
+            "gym_id": 1
+          }
+        },
+        {
+          "step": 3,
+          "action": "Add Member 2",
+          "endpoint": "POST /api/members/add_member",
+          "data": {
+            "name": "Sarah Wilson",
+            "email": "sarah.wilson@example.com",
+            "phone": "555-0002",
+            "address": "456 Oak Avenue",
+            "city": "Los Angeles",
+            "state": "CA",
+            "zip": "90210",
+            "gym_id": 1
+          }
+        },
+        {
+          "step": 4,
+          "action": "Add Trainer",
+          "endpoint": "POST /api/trainers/add_trainer",
+          "data": {
+            "name": "Alex Johnson",
+            "email": "alex.johnson@example.com",
+            "phone": "555-1001",
+            "address": "123 Trainer Lane",
+            "city": "New York",
+            "state": "NY",
+            "zip": "10001"
+          }
+        },
+        {
+          "step": 5,
+          "action": "Add Contest",
+          "endpoint": "POST /api/contests/add_contest",
+          "data": {
+            "name": "Summer Strength Challenge",
+            "description": "Compete to lift your limits and earn rewards!",
+            "banner_link": "https://images.unsplash.com/photo-1598970434795-0c54fe7c0648?auto=format&fit=crop&w=800&q=60",
+            "start_date": "2024-06-01T00:00:00.000Z",
+            "end_date": "2024-08-31T23:59:59.000Z",
+            "gym_id": 1
+          }
+        },
+        {
+          "step": 6,
+          "action": "Add Participants",
+          "endpoint": "POST /api/participants/add_participant",
+          "data": [
+            {
+              "member_id": 1,
+              "contest_id": 1,
+              "contest_rank": 1,
+              "gym_id": 1,
+              "participant_status": "Active"
+            },
+            {
+              "member_id": 2,
+              "contest_id": 1,
+              "contest_rank": 2,
+              "gym_id": 1,
+              "participant_status": "Active"
+            }
+          ]
+        }
+      ]
+    },
+    "scenario_2_subscription_management": {
+      "description": "Complete subscription workflow with plans and subscriptions",
+      "steps": [
+        {
+          "step": 1,
+          "action": "Add Subscription Plans",
+          "endpoint": "POST /api/subscription_plans/add_subscription_plan",
+          "data": [
+            {
+              "plan_name": "Basic Monthly",
+              "plan_description": "Basic gym access for 30 days",
+              "plan_duration": 30,
+              "plan_price": 29.99,
+              "gym_id": 1
+            },
+            {
+              "plan_name": "Premium Annual",
+              "plan_description": "Full access to all gym facilities for 365 days",
+              "plan_duration": 365,
+              "plan_price": 299.99,
+              "gym_id": 1
+            }
+          ]
+        },
+        {
+          "step": 2,
+          "action": "Add Subscriptions",
+          "endpoint": "POST /api/subscriptions/add_subscription",
+          "data": [
+            {
+              "member_id": 1,
+              "gym_id": 1,
+              "subscription_plan": "Premium Annual (365 days)",
+              "subscription_status": "active",
+              "start_date": "2024-01-01T00:00:00.000Z",
+              "end_date": "2024-12-31T23:59:59.000Z"
+            },
+            {
+              "member_id": 2,
+              "gym_id": 1,
+              "subscription_plan": "Basic Monthly (30 days)",
+              "subscription_status": "active",
+              "start_date": "2024-11-01T00:00:00.000Z",
+              "end_date": "2024-11-30T23:59:59.000Z"
+            }
+          ]
+        }
+      ]
+    },
+    "scenario_3_multiple_contests": {
+      "description": "Multiple contests with participants across different gyms",
+      "steps": [
+        {
+          "step": 1,
+          "action": "Add Multiple Contests",
+          "endpoint": "POST /api/contests/add_contest",
+          "data": [
+            {
+              "name": "Cardio Marathon Week",
+              "description": "Push your endurance and top the leaderboard.",
+              "banner_link": "https://images.unsplash.com/photo-1605296867304-46d5465a13f1?auto=format&fit=crop&w=800&q=60",
+              "start_date": "2024-07-01T00:00:00.000Z",
+              "end_date": "2024-07-07T23:59:59.000Z",
+              "gym_id": 2
+            },
+            {
+              "name": "Flexibility Challenge",
+              "description": "Test your stretching power and balance.",
+              "banner_link": "https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?auto=format&fit=crop&w=800&q=60",
+              "start_date": "2024-09-01T00:00:00.000Z",
+              "end_date": "2024-09-30T23:59:59.000Z",
+              "gym_id": 1
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "bulk_test_data": {
+    "members": [
+      {
+        "name": "Alice Johnson",
+        "email": "alice.johnson@example.com",
+        "phone": "555-0101",
+        "address": "123 Fitness Street",
+        "city": "New York",
+        "state": "NY",
+        "zip": "10001",
+        "gym_id": 1
+      },
+      {
+        "name": "Bob Smith",
+        "email": "bob.smith@example.com",
+        "phone": "555-0102",
+        "address": "456 Health Avenue",
+        "city": "Los Angeles",
+        "state": "CA",
+        "zip": "90210",
+        "gym_id": 1
+      },
+      {
+        "name": "Carol Davis",
+        "email": "carol.davis@example.com",
+        "phone": "555-0103",
+        "address": "789 Wellness Road",
+        "city": "Chicago",
+        "state": "IL",
+        "zip": "60601",
+        "gym_id": 2
+      },
+      {
+        "name": "David Brown",
+        "email": "david.brown@example.com",
+        "phone": "555-0104",
+        "address": "321 Strength Lane",
+        "city": "Houston",
+        "state": "TX",
+        "zip": "77001",
+        "gym_id": 2
+      },
+      {
+        "name": "Emma Wilson",
+        "email": "emma.wilson@example.com",
+        "phone": "555-0105",
+        "address": "654 Power Drive",
+        "city": "Phoenix",
+        "state": "AZ",
+        "zip": "85001",
+        "gym_id": 1
+      }
+    ],
+    "trainers": [
+      {
+        "name": "Mike Trainer",
+        "email": "mike.trainer@example.com",
+        "phone": "555-1001",
+        "address": "123 Trainer Lane",
+        "city": "New York",
+        "state": "NY",
+        "zip": "10001"
+      },
+      {
+        "name": "Lisa Coach",
+        "email": "lisa.coach@example.com",
+        "phone": "555-1002",
+        "address": "456 Fitness Ave",
+        "city": "Los Angeles",
+        "state": "CA",
+        "zip": "90210"
+      },
+      {
+        "name": "Tom Instructor",
+        "email": "tom.instructor@example.com",
+        "phone": "555-1003",
+        "address": "789 Gym Street",
+        "city": "Chicago",
+        "state": "IL",
+        "zip": "60601"
+      }
+    ],
+    "contests": [
+      {
+        "name": "Winter Fitness Challenge",
+        "description": "Stay active during winter months with our comprehensive fitness challenge.",
+        "banner_link": "https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?auto=format&fit=crop&w=800&q=60",
+        "start_date": "2024-12-01T00:00:00.000Z",
+        "end_date": "2024-12-31T23:59:59.000Z",
+        "gym_id": 1
+      },
+      {
+        "name": "New Year Resolution Challenge",
+        "description": "Start the new year right with our 30-day fitness challenge.",
+        "banner_link": "https://images.unsplash.com/photo-1598970434795-0c54fe7c0648?auto=format&fit=crop&w=800&q=60",
+        "start_date": "2025-01-01T00:00:00.000Z",
+        "end_date": "2025-01-31T23:59:59.000Z",
+        "gym_id": 2
+      },
+      {
+        "name": "Spring Body Transformation",
+        "description": "Get ready for spring with our body transformation contest.",
+        "banner_link": "https://images.unsplash.com/photo-1605296867304-46d5465a13f1?auto=format&fit=crop&w=800&q=60",
+        "start_date": "2025-03-01T00:00:00.000Z",
+        "end_date": "2025-05-31T23:59:59.000Z",
+        "gym_id": 1
+      }
+    ],
+    "subscription_plans": [
+      {
+        "plan_name": "Student Pass",
+        "plan_description": "Discounted access for students with valid ID",
+        "plan_duration": 90,
+        "plan_price": 49.99,
+        "gym_id": 1
+      },
+      {
+        "plan_name": "Senior Citizen",
+        "plan_description": "Special rates for senior citizens (65+)",
+        "plan_duration": 180,
+        "plan_price": 79.99,
+        "gym_id": 1
+      },
+      {
+        "plan_name": "Corporate Membership",
+        "plan_description": "Bulk membership for corporate employees",
+        "plan_duration": 365,
+        "plan_price": 199.99,
+        "gym_id": 2
+      }
+    ]
+  },
+  "edge_cases": {
+    "invalid_data": {
+      "invalid_email": {
+        "name": "Test User",
+        "email": "invalid-email",
+        "phone": "555-0000",
+        "address": "123 Test Street",
+        "city": "Test City",
+        "state": "TS",
+        "zip": "12345",
+        "gym_id": 1
+      },
+      "missing_required_fields": {
+        "name": "Incomplete User"
+      },
+      "invalid_dates": {
+        "name": "Future Contest",
+        "description": "Contest with invalid date range",
+        "banner_link": "https://example.com/image.jpg",
+        "start_date": "2024-12-31T00:00:00.000Z",
+        "end_date": "2024-01-01T00:00:00.000Z",
+        "gym_id": 1
+      }
+    },
+    "boundary_tests": {
+      "max_length_strings": {
+        "name": "A".repeat(100),
+        "description": "B".repeat(100),
+        "banner_link": "https://example.com/" + "C".repeat(100) + ".jpg",
+        "start_date": "2024-01-01T00:00:00.000Z",
+        "end_date": "2024-12-31T23:59:59.000Z",
+        "gym_id": 1
+      },
+      "extreme_values": {
+        "plan_price": 999999.99,
+        "plan_duration": 3650,
+        "contest_rank": 999999
+      }
+    }
+  },
+  "performance_test_data": {
+    "bulk_members": {
+      "count": 100,
+      "template": {
+        "name": "Member {{index}}",
+        "email": "member{{index}}@example.com",
+        "phone": "555-{{index}}",
+        "address": "{{index}} Test Street",
+        "city": "Test City",
+        "state": "TS",
+        "zip": "{{index}}",
+        "gym_id": 1
+      }
+    },
+    "bulk_contests": {
+      "count": 50,
+      "template": {
+        "name": "Contest {{index}}",
+        "description": "Test contest number {{index}}",
+        "banner_link": "https://example.com/contest{{index}}.jpg",
+        "start_date": "2024-01-01T00:00:00.000Z",
+        "end_date": "2024-12-31T23:59:59.000Z",
+        "gym_id": 1
+      }
+    }
+  }
+}
+
+

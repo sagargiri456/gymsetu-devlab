@@ -1,16 +1,40 @@
 "use client";
 
 import { useState } from "react";
-import Image from "next/image";
+import { useRouter } from "next/navigation";
+import { getApiUrl } from "@/lib/api";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const router = useRouter();
 
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     console.log("Login:", { email, password });
-    // TODO: connect with Flask API here
+    
+    try {
+      const response = await fetch(getApiUrl("api/auth/login"), {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ email, password }),
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        console.log(data.access_token);
+        localStorage.setItem("access_token", data.access_token);
+        router.push("/dashboard");
+      } else {
+        console.error("Login failed:", response.statusText);
+        alert("Login failed. Please check your credentials and try again.");
+      }
+    } catch (error) {
+      console.error("Network error:", error);
+      alert("Cannot connect to server. Please check your connection and try again.");
+    }
   };
 
   return (
@@ -18,14 +42,36 @@ export default function LoginPage() {
       <div className="w-[430px] h-[500px] p-8 rounded-[35px] shadow-[6px_6px_12px_rgba(0,0,0,0.2),-6px_-6px_12px_rgba(255,255,255,0.8)] bg-[#ecf0f3]">
         {/* Logo */}
         <div className="flex justify-center mb-6">
-          <div className="w-[100px] h-[100px] rounded-full bg-[#ecf0f3] shadow-[0px_0px_2px_#5f5f5f,0px_0px_0px_5px_#ecf0f3,8px_8px_15px_#a7aaaf,-8px_-8px_15px_#ffffff] overflow-hidden">
-            <Image
-              src="/gymsetu-logo.png"
-              alt="GymSetu Logo"
-              width={100}
-              height={100}
-              className="object-cover rounded-full"
-            />
+          <div className="w-[100px] h-[100px] rounded-full bg-[#ecf0f3] shadow-[0px_0px_2px_#5f5f5f,0px_0px_0px_5px_#ecf0f3,8px_8px_15px_#a7aaaf,-8px_-8px_15px_#ffffff] flex items-center justify-center">
+            <svg
+              width="60"
+              height="60"
+              viewBox="0 0 24 24"
+              fill="none"
+              className="text-[#E91E63]"
+            >
+              <path
+                d="M12 2L2 7L12 12L22 7L12 2Z"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+              <path
+                d="M2 17L12 22L22 17"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+              <path
+                d="M2 12L12 17L22 12"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
           </div>
         </div>
 
@@ -67,16 +113,10 @@ export default function LoginPage() {
           <div className="flex items-center rounded-[20px] px-4 py-3 shadow-[inset_5px_5px_10px_#cbced1,inset_-5px_-5px_10px_#ffffff]">
             <svg
               fill="#999"
-              viewBox="0 0 1024 1024"
+              viewBox="0 0 24 24"
               className="h-5 w-5 mr-3"
             >
-              <path d="M742.4 409.6h-25.6v-76.8c0-127.043-103.
-              357-230.4-230.4-230.4s-230.4 103.357-230.4
-              230.4v76.8h-25.6c-42.347 0-76.8 34.453-76.8
-              76.8v409.6c0 42.347 34.453 76.8 76.8 76.8h512c42.347
-              0 76.8-34.453 76.8-76.8v-409.6c0-42.347-34.453-76.
-              8-76.8-76.8zM307.2 332.8c0-98.811 80.389-179.2
-              179.2-179.2s179.2 80.389 179.2 179.2v76.8h-358.4v-76.8z" />
+              <path d="M12 1c-4.97 0-9 4.03-9 9v7c0 1.66 1.34 3 3 3h3v-8H5v-2c0-3.87 3.13-7 7-7s7 3.13 7 7v2h-4v8h4c1.66 0 3-1.34 3-3v-7c0-4.97-4.03-9-9-9z" />
             </svg>
             <input
               type="password"
@@ -103,7 +143,7 @@ export default function LoginPage() {
             Forgot password?
           </a>{" "}
           or{" "}
-          <a href="#" className="hover:text-[#FF8A00] transition">
+          <a href="/register" className="hover:text-[#FF8A00] transition">
             Signup
           </a>
         </div>

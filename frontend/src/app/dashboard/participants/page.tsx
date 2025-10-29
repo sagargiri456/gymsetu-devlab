@@ -8,151 +8,124 @@ import {
   MdKeyboardArrowLeft,
   MdKeyboardArrowRight,
   MdMoreVert,
-  MdPeople,
+  MdPerson,
 } from "react-icons/md";
 import Modal from "../../components/Modal";
 import { getApiUrl } from "@/lib/api";
 
-// Utility function for date formatting
-const formatDate = (dateString: string): string => {
-  // Use 'short' month for brevity in the table
-  return new Date(dateString).toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-  });
-};
+// --- Participant Interface based on backend model ---
+interface Participant {
+  id: number;
+  member_id: number;
+  contest_id: number;
+  contest_rank: number;
+  created_at: string;
+  updated_at: string;
+  gym_id: number;
+  participant_status: string;
+  // Additional fields for display
+  member_name?: string;
+  contest_title?: string;
+}
 
-// --- Neomorphic Status Badge ---
-const StatusBadge: React.FC<{ status: 'active' | string }> = ({ status }) => {
-  const isActive = status === "active";
-  const statusDisplay = isActive ? "Active" : "Expired";
-  
-  // Neumorphic inset shadow for a "pressed" look
-  const baseShadow =
-    "shadow-[inset_2px_2px_4px_#bebebe,inset_-2px_-2px_4px_#ffffff]";
+// --- Status Badge Component ---
+const StatusBadge: React.FC<{ status: string }> = ({ status }) => {
+  const getStatusColor = (status: string) => {
+    switch (status.toLowerCase()) {
+      case 'active':
+      case 'participating':
+        return "text-green-700";
+      case 'inactive':
+      case 'disqualified':
+        return "text-red-700";
+      case 'pending':
+        return "text-yellow-700";
+      default:
+        return "text-gray-700";
+    }
+  };
 
   return (
     <span
-      className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold uppercase ${
-        isActive
-          ? "text-green-700"
-          : "text-red-700"
-      } bg-[#ecf0f3] ${baseShadow}`}
+      className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${getStatusColor(status)} bg-[#ecf0f3] shadow-[inset_2px_2px_4px_#cbced1,inset_-2px_-2px_4px_#ffffff]`}
     >
-      {statusDisplay}
+      {status}
     </span>
   );
 };
 
-// --- Subscription Interface based on backend model ---
-interface SubscriptionData {
-  id: number;
-  member_id: number;
-  gym_id: number;
-  subscription_plan: string;
-  subscription_status: string;
-  start_date: string;
-  end_date: string;
-  created_at: string;
-  // Additional fields for display
-  member_name?: string;
-  gym_name?: string;
-}
+// Sample data will be replaced by API fetch
 
-// Sample members and gyms for dropdowns
+// --- Sample Members and Contests for dropdowns ---
 const members = [
-  { id: 1, name: "Alex Johnson" },
-  { id: 2, name: "Maria Gomez" },
-  { id: 3, name: "Samir Khan" },
-  { id: 4, name: "Emily Wang" },
-  { id: 5, name: "Chris Lee" },
+  { id: 1, name: "Mark Johnson" },
+  { id: 2, name: "Sarah Wilson" },
+  { id: 3, name: "Mike Chen" },
+  { id: 4, name: "Emma Davis" },
+  { id: 5, name: "David Brown" },
   { id: 6, name: "Lisa Anderson" },
   { id: 7, name: "Tom Wilson" },
 ];
 
-const gyms = [
-  { id: 1, name: "Main Gym" },
-  { id: 2, name: "Branch Gym" },
-  { id: 3, name: "Premium Gym" },
+const contests = [
+  { id: 1, title: "Summer Strength Challenge" },
+  { id: 2, title: "Cardio Marathon Week" },
+  { id: 3, title: "Flexibility Challenge" },
 ];
 
-// Sample data will be replaced by API fetch
-
-const SubscriptionsPage: React.FC = () => {
+const ParticipantsPage: React.FC = () => {
   const router = useRouter();
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [subscriptionsList, setSubscriptionsList] = useState<SubscriptionData[]>([]);
+  const [participantsList, setParticipantsList] = useState<Participant[]>([]);
   const [loading, setLoading] = useState(true);
   const [formData, setFormData] = useState({
     member_id: "",
-    gym_id: "",
-    subscription_plan: "",
-    subscription_status: "active",
-    start_date: "",
-    end_date: "",
+    contest_id: "",
+    contest_rank: "",
+    gym_id: 1,
+    participant_status: "Active",
   });
 
-  const tableHeaders = [
-    "ID",
+  const headers = [
     "Member",
-    "Gym",
-    "Plan",
-    "Start Date",
-    "End Date",
+    "Contest",
+    "Rank",
     "Status",
+    "Gym ID",
+    "Created",
+    "Updated",
   ];
 
-  const totalRecords = subscriptionsList.length;
-  const rowsPerPage = 5;
-  const currentPage = 1; // For pagination display only
-  const startRange = (currentPage - 1) * rowsPerPage + 1;
-  const endRange = Math.min(currentPage * rowsPerPage, totalRecords);
-
-  // Fetch subscriptions data from backend
+  // Fetch participants data from backend
   useEffect(() => {
-    const fetchSubscriptions = async () => {
+    const fetchParticipants = async () => {
       try {
-        const token = localStorage.getItem("access_token");
-        const apiUrl = getApiUrl("api/subscription/get_all_subscriptions");
-        console.log("Fetching subscriptions from:", apiUrl);
-        console.log("Authorization token:", token ? "Present" : "Missing");
-        
-        if (!token) {
-          console.error("No access token found. Please login again.");
-          setSubscriptionsList([]);
-          setLoading(false);
-          return;
-        }
-        
-        const response = await fetch(apiUrl, {
+        const response = await fetch(getApiUrl("api/participants/get_participants"), {
           method: "GET",
           headers: {
             "Content-Type": "application/json",
-            "Authorization": `Bearer ${token}`,
+            "Authorization": `Bearer ${localStorage.getItem("access_token")}`,
           },
         });
         
-        console.log("Response status:", response.status);
-        
         if (response.ok) {
           const data = await response.json();
-          if (data.success && data.subscriptions) {
-            setSubscriptionsList(data.subscriptions);
+          if (data.success && data.participants) {
+            setParticipantsList(data.participants);
           } else {
-            console.log("No subscriptions data found in response");
-            setSubscriptionsList([]);
+            console.log("No participants data found in response");
+            setParticipantsList([]);
           }
         } else {
           const errorText = await response.text();
-          console.error("Failed to fetch subscriptions:", response.status, response.statusText);
+          console.error("Failed to fetch participants:", response.status, response.statusText);
           console.error("Error response:", errorText);
           
           // Check if it's an auth error
           if (response.status === 401) {
             try {
               const parsed = JSON.parse(errorText);
-              if (parsed?.msg?.toLowerCase().includes("subject must be a string") || parsed?.msg || parsed?.message) {
+              if (parsed?.msg?.toLowerCase().includes("subject must be a string") || parsed?.msg) {
                 localStorage.removeItem("access_token");
                 router.push("/login");
                 return;
@@ -166,7 +139,7 @@ const SubscriptionsPage: React.FC = () => {
           // If it's a 400 or 404 error, the API might not exist yet
           if (response.status === 400 || response.status === 404) {
             console.log("API endpoint might not exist yet. Using empty array as fallback.");
-            setSubscriptionsList([]);
+            setParticipantsList([]);
           }
         }
       } catch (error) {
@@ -176,74 +149,74 @@ const SubscriptionsPage: React.FC = () => {
       }
     };
 
-    fetchSubscriptions();
-  }, [router]);
+    fetchParticipants();
+  }, []);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({
       ...prev,
-      [name]: name === 'member_id' || name === 'gym_id' ? parseInt(value) || 0 : value
+      [name]: name === 'gym_id' || name === 'member_id' || name === 'contest_id' || name === 'contest_rank' 
+        ? parseInt(value) || (name === 'gym_id' ? 1 : 0) 
+        : value
     }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const newSubscription: SubscriptionData = {
-      id: Math.max(...subscriptionsList.map(s => s.id)) + 1,
+    const newParticipant: Participant = {
+      id: participantsList.length + 1,
       member_id: parseInt(formData.member_id),
-      gym_id: parseInt(formData.gym_id),
-      subscription_plan: formData.subscription_plan,
-      subscription_status: formData.subscription_status,
-      start_date: new Date(formData.start_date).toISOString(),
-      end_date: new Date(formData.end_date).toISOString(),
+      contest_id: parseInt(formData.contest_id),
+      contest_rank: parseInt(formData.contest_rank),
+      gym_id: formData.gym_id,
+      participant_status: formData.participant_status,
       created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
       member_name: members.find(m => m.id === parseInt(formData.member_id))?.name || "",
-      gym_name: gyms.find(g => g.id === parseInt(formData.gym_id))?.name || "",
+      contest_title: contests.find(c => c.id === parseInt(formData.contest_id))?.title || "",
     };
 
     try {
-      const response = await fetch(getApiUrl("api/subscriptions/add_subscription"), {
+      const response = await fetch(getApiUrl("api/participants/add_participant"), {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           "Authorization": `Bearer ${localStorage.getItem("access_token")}`,
         },
         body: JSON.stringify({
-          member_id: newSubscription.member_id,
-          gym_id: newSubscription.gym_id,
-          subscription_plan: newSubscription.subscription_plan,
-          subscription_status: newSubscription.subscription_status,
-          start_date: newSubscription.start_date,
-          end_date: newSubscription.end_date,
+          member_id: newParticipant.member_id,
+          contest_id: newParticipant.contest_id,
+          contest_rank: newParticipant.contest_rank,
+          gym_id: newParticipant.gym_id,
+          participant_status: newParticipant.participant_status,
         }),
       });
       
         if (response.ok) {
           const data = await response.json();
-          console.log("Add subscription response:", data);
-          if (data.success && data.subscription) {
-            // Use the subscription data returned from backend
-            setSubscriptionsList(prev => [...prev, data.subscription]);
+          console.log("Add participant response:", data);
+          if (data.success && data.participant) {
+            // Use the participant data returned from backend
+            setParticipantsList(prev => [...prev, data.participant]);
           } else {
-            // Fallback to using the newSubscription we created
-            setSubscriptionsList(prev => [...prev, newSubscription]);
+            // Fallback to using the newParticipant we created
+            setParticipantsList(prev => [...prev, newParticipant]);
           }
           setFormData({
             member_id: "",
-            gym_id: "",
-            subscription_plan: "",
-            subscription_status: "active",
-            start_date: "",
-            end_date: "",
+            contest_id: "",
+            contest_rank: "",
+            gym_id: 1,
+            participant_status: "Active",
           });
           setIsModalOpen(false);
-          alert("Subscription added successfully!");
+          alert("Participant added successfully!");
         } else {
           const errorData = await response.json();
-          console.error("Failed to add subscription:", response.status, response.statusText);
+          console.error("Failed to add participant:", response.status, response.statusText);
           console.error("Error response:", errorData);
-          alert(`Failed to add subscription: ${errorData.message || response.statusText}`);
+          alert(`Failed to add participant: ${errorData.message || response.statusText}`);
         }
     } catch (error) {
       console.error("Network error:", error);
@@ -251,51 +224,50 @@ const SubscriptionsPage: React.FC = () => {
     }
   };
 
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString();
+  };
+
   return (
     <div className="ml-0 lg:ml-64 pt-16 lg:pt-24 p-6 sm:p-8 lg:p-12 min-h-screen bg-[#ecf0f3]">
-      
-      {/* Header and Add Button */}
+      {/* Header */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between mb-8 lg:mb-12 gap-6 px-2">
         <h4 className="text-2xl lg:text-3xl font-bold text-gray-800 drop-shadow-[1px_1px_0px_#fff]">
-          Subscriptions
+          Participants
         </h4>
 
-        {/* New Subscription Button - Neumorphic Button Style */}
         <button
           onClick={() => setIsModalOpen(true)}
-          className="inline-flex items-center justify-center px-6 py-3 font-semibold text-sm rounded-full text-white bg-green-600 hover:bg-green-700 transition-all duration-200 min-w-[180px] shadow-lg hover:shadow-xl"
+          className="inline-flex items-center justify-center px-6 py-3 font-semibold text-sm rounded-full text-white bg-green-600 hover:bg-green-700 transition-all duration-200 min-w-[160px] shadow-lg hover:shadow-xl"
         >
           <MdAdd size={20} className="mr-2" />
-          New Subscription
+          Add Participant
         </button>
       </div>
 
-      {/* Table Card - Neumorphic Card Style */}
+      {/* Card */}
       <div className="rounded-3xl bg-[#ecf0f3] shadow-[8px_8px_16px_#cbced1,-8px_-8px_16px_#ffffff] overflow-hidden">
-        
-        {/* Search + Filter Bar */}
-        <div className="flex flex-col lg:flex-row items-center justify-between p-4 lg:p-6 gap-4">
-          {/* Search Box - Neumorphic Inset Style */}
-          <div className="relative flex items-center w-full lg:w-72 rounded-full px-4 py-2 bg-[#ecf0f3] shadow-[inset_5px_5px_10px_#cbced1,inset_-5px_-5px_10px_#ffffff]">
-            <MdSearch size={20} className="text-gray-500 mr-2" />
+        {/* Search and Filter */}
+        <div className="flex flex-col lg:flex-row items-center justify-between p-6 lg:p-8 gap-6">
+          <div className="relative flex items-center w-full lg:w-80 rounded-full px-5 py-3 bg-[#ecf0f3] shadow-[inset_5px_5px_10px_#cbced1,inset_-5px_-5px_10px_#ffffff]">
+            <MdSearch size={20} className="text-gray-500 mr-3" />
             <input
               type="text"
-              placeholder="Search subscriptions..."
+              placeholder="Search participant..."
               className="w-full bg-transparent border-none focus:outline-none text-sm text-gray-700 placeholder-gray-500"
             />
           </div>
 
-          {/* Filter Button - Neumorphic Icon Button Style */}
-          <button className="p-3 rounded-full bg-[#ecf0f3] shadow-[5px_5px_10px_#cbced1,-5px_-5px_10px_#ffffff] hover:shadow-[inset_5px_5px_10px_#cbced1,inset_-5px_-5px_10px_#ffffff] transition-all text-gray-600 w-full lg:w-auto">
+          <button className="p-4 rounded-full bg-[#ecf0f3] shadow-[5px_5px_10px_#cbced1,-5px_-5px_10px_#ffffff] hover:shadow-[inset_5px_5px_10px_#cbced1,inset_-5px_-5px_10px_#ffffff] transition-all text-gray-600 w-full lg:w-auto">
             <MdFilterList size={22} />
           </button>
         </div>
 
-        {/* Table Container */}
+        {/* Table */}
         <div className="overflow-x-auto">
           {loading ? (
             <div className="flex justify-center items-center py-12">
-              <div className="text-gray-500">Loading subscriptions...</div>
+              <div className="text-gray-500">Loading participants...</div>
             </div>
           ) : (
             <table className="min-w-full text-sm text-gray-700">
@@ -307,7 +279,8 @@ const SubscriptionsPage: React.FC = () => {
                       className="w-4 h-4 text-green-600 accent-green-600"
                     />
                   </th>
-                  {tableHeaders.map((h) => (
+                  <th></th>
+                  {headers.map((h) => (
                     <th
                       key={h}
                       className="px-6 py-4 text-left font-semibold tracking-wide"
@@ -319,9 +292,9 @@ const SubscriptionsPage: React.FC = () => {
                 </tr>
               </thead>
               <tbody>
-                {subscriptionsList.map((sub) => (
+                {participantsList.map((participant) => (
                 <tr
-                  key={sub.id}
+                  key={participant.id}
                   className="border-b border-gray-200 hover:bg-[#d8d8d8] transition-all"
                 >
                   <td className="px-4 py-4">
@@ -330,30 +303,24 @@ const SubscriptionsPage: React.FC = () => {
                       className="w-4 h-4 text-green-600 accent-green-600"
                     />
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap font-medium text-gray-800">{sub.id}</td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center space-x-3">
-                      <div className="w-8 h-8 rounded-full flex items-center justify-center bg-[#ecf0f3] shadow-[inset_2px_2px_4px_#cbced1,inset_-2px_-2px_4px_#ffffff]">
-                        <MdPeople size={18} className="text-gray-600" />
-                      </div>
-                      <div>
-                        <span className="font-medium text-gray-800">{sub.member_name}</span>
-                        <p className="text-xs text-gray-500">ID: {sub.member_id}</p>
-                      </div>
+
+                  <td className="px-4 py-4">
+                    <div className="w-10 h-10 rounded-full flex items-center justify-center bg-[#ecf0f3] shadow-[inset_3px_3px_6px_#cbced1,inset_-3px_-3px_6px_#ffffff]">
+                      <MdPerson
+                        size={22}
+                        className="text-gray-600"
+                      />
                     </div>
                   </td>
+                  <td className="px-6 py-4 whitespace-nowrap">{participant.member_name}</td>
+                  <td className="px-6 py-4 whitespace-nowrap">{participant.contest_title}</td>
+                  <td className="px-6 py-4 whitespace-nowrap font-semibold">#{participant.contest_rank}</td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <div>
-                      <span className="font-medium text-gray-800">{sub.gym_name}</span>
-                      <p className="text-xs text-gray-500">ID: {sub.gym_id}</p>
-                    </div>
+                    <StatusBadge status={participant.participant_status} />
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-gray-700">{sub.subscription_plan}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-gray-700">{formatDate(sub.start_date)}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-gray-700">{formatDate(sub.end_date)}</td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <StatusBadge status={sub.subscription_status} />
-                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">{participant.gym_id}</td>
+                  <td className="px-6 py-4 whitespace-nowrap">{formatDate(participant.created_at)}</td>
+                  <td className="px-6 py-4 whitespace-nowrap">{formatDate(participant.updated_at)}</td>
                   <td className="px-6 py-4 text-right whitespace-nowrap">
                     <button className="p-2 rounded-full bg-[#ecf0f3] shadow-[4px_4px_8px_#cbced1,-4px_-4px_8px_#ffffff] hover:shadow-[inset_4px_4px_8px_#cbced1,inset_-4px_-4px_8px_#ffffff] transition-all">
                       <MdMoreVert size={18} className="text-gray-700" />
@@ -368,19 +335,17 @@ const SubscriptionsPage: React.FC = () => {
 
         {/* Pagination */}
         <div className="flex items-center justify-end p-6 border-t border-gray-300">
-          <p className="text-sm text-gray-600 mr-6">Rows per page: {rowsPerPage}</p>
-          <p className="text-sm text-gray-600 mr-8">{startRange}–{endRange} of {totalRecords}</p>
+          <p className="text-sm text-gray-600 mr-6">Rows per page: 5</p>
+          <p className="text-sm text-gray-600 mr-8">1–5 of 5</p>
           <div className="flex space-x-2">
-            {/* Previous Page Button - Neumorphic Icon Button Style */}
             <button
-              disabled={startRange === 1}
+              disabled
               className="p-2 rounded-full bg-[#ecf0f3] text-gray-700 shadow-[4px_4px_8px_#cbced1,-4px_-4px_8px_#ffffff] disabled:text-gray-400 disabled:shadow-[inset_3px_3px_6px_#cbced1,inset_-3px_-3px_6px_#ffffff] hover:shadow-[inset_4px_4px_8px_#cbced1,inset_-4px_-4px_8px_#ffffff] transition-all"
             >
               <MdKeyboardArrowLeft size={20} />
             </button>
-            {/* Next Page Button - Neumorphic Icon Button Style */}
             <button
-              disabled={endRange === totalRecords}
+              disabled
               className="p-2 rounded-full bg-[#ecf0f3] text-gray-700 shadow-[4px_4px_8px_#cbced1,-4px_-4px_8px_#ffffff] disabled:text-gray-400 disabled:shadow-[inset_3px_3px_6px_#cbced1,inset_-3px_-3px_6px_#ffffff] hover:shadow-[inset_4px_4px_8px_#cbced1,inset_-4px_-4px_8px_#ffffff] transition-all"
             >
               <MdKeyboardArrowRight size={20} />
@@ -389,11 +354,11 @@ const SubscriptionsPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Add Subscription Modal */}
+      {/* Add Participant Modal */}
       <Modal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        title="Add New Subscription"
+        title="Add New Participant"
       >
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -418,83 +383,72 @@ const SubscriptionsPage: React.FC = () => {
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Gym
+                Contest
               </label>
               <select
-                name="gym_id"
-                value={formData.gym_id}
+                name="contest_id"
+                value={formData.contest_id}
                 onChange={handleInputChange}
                 required
                 className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-green-500 focus:border-transparent"
               >
-                <option value="">Select Gym</option>
-                {gyms.map((gym) => (
-                  <option key={gym.id} value={gym.id}>
-                    {gym.name}
+                <option value="">Select Contest</option>
+                {contests.map((contest) => (
+                  <option key={contest.id} value={contest.id}>
+                    {contest.title}
                   </option>
                 ))}
               </select>
             </div>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Subscription Plan
-            </label>
-            <input
-              type="text"
-              name="subscription_plan"
-              value={formData.subscription_plan}
-              onChange={handleInputChange}
-              required
-              placeholder="e.g., Monthly Pass (30 days)"
-              className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-green-500 focus:border-transparent"
-            />
-          </div>
-
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Start Date
+                Contest Rank
               </label>
               <input
-                type="date"
-                name="start_date"
-                value={formData.start_date}
+                type="number"
+                name="contest_rank"
+                value={formData.contest_rank}
                 onChange={handleInputChange}
                 required
+                min="1"
                 className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-green-500 focus:border-transparent"
               />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                End Date
+                Status
               </label>
-              <input
-                type="date"
-                name="end_date"
-                value={formData.end_date}
+              <select
+                name="participant_status"
+                value={formData.participant_status}
                 onChange={handleInputChange}
                 required
                 className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-green-500 focus:border-transparent"
-              />
+              >
+                <option value="Active">Active</option>
+                <option value="Inactive">Inactive</option>
+                <option value="Disqualified">Disqualified</option>
+                <option value="Pending">Pending</option>
+              </select>
             </div>
           </div>
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Status
+              Gym ID
             </label>
-            <select
-              name="subscription_status"
-              value={formData.subscription_status}
+            <input
+              type="number"
+              name="gym_id"
+              value={formData.gym_id}
               onChange={handleInputChange}
               required
+              min="1"
               className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-green-500 focus:border-transparent"
-            >
-              <option value="active">Active</option>
-              <option value="expired">Expired</option>
-            </select>
+            />
           </div>
 
           <div className="flex justify-end space-x-4 pt-4">
@@ -509,7 +463,7 @@ const SubscriptionsPage: React.FC = () => {
               type="submit"
               className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
             >
-              Add Subscription
+              Add Participant
             </button>
           </div>
         </form>
@@ -518,4 +472,5 @@ const SubscriptionsPage: React.FC = () => {
   );
 };
 
-export default SubscriptionsPage;
+export default ParticipantsPage;
+

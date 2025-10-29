@@ -1,5 +1,5 @@
 from flask import Blueprint, request, jsonify
-from app import db
+from database import db
 from models.members import Member
 from utils.auth_utils import owner_required
 from utils.validation import validate_member_data, validate_json_request
@@ -41,11 +41,10 @@ def add_member(current_gym):
     return jsonify({"success": True, "message": "Member added successfully"}), 201
 
 
-@members_bp.route("/get_member", methods=["GET"])
+@members_bp.route("/get_members", methods=["GET"])
 @owner_required
 def get_member(current_gym):
-    data = request.get_json()
-    gym_id = data.get("gym_id", current_gym.id)
+    gym_id = request.args.get("gym_id", current_gym.id)
     members = Member.query.filter_by(gym_id=gym_id).all()
     return (
         jsonify(
@@ -114,8 +113,7 @@ def delete_member(current_gym):
 @members_bp.route("/get_member_by_id", methods=["GET"])
 @owner_required
 def get_member_by_id(current_gym):
-    data = request.get_json()
-    member_id = data["member_id"]
+    member_id = request.args.get("member_id")
     member = Member.query.filter_by(id=member_id, gym_id=current_gym.id).first()
     if not member:
         return jsonify({"success": False, "message": "Member not found"}), 404
@@ -134,8 +132,7 @@ def get_member_by_id(current_gym):
 @members_bp.route("/get_member_by_email", methods=["GET"])
 @owner_required
 def get_member_by_email(current_gym):
-    data = request.get_json()
-    email = data["email"]
+    email = request.args.get("email")
     member = Member.query.filter_by(email=email, gym_id=current_gym.id).first()
     if not member:
         return jsonify({"success": False, "message": "Member not found"}), 404

@@ -3,6 +3,8 @@ from werkzeug.exceptions import HTTPException
 from sqlalchemy.exc import SQLAlchemyError, IntegrityError
 from utils.validation import ValidationError
 from utils.validation import ValidationError
+from flask_jwt_extended.exceptions import JWTExtendedException
+from jwt.exceptions import DecodeError, InvalidTokenError
 import logging
 
 # Configure logging
@@ -194,6 +196,24 @@ def register_error_handlers(app):
             ),
             500,
         )
+
+    @app.errorhandler(JWTExtendedException)
+    def handle_jwt_extended_error(error):
+        """Handle JWT Extended errors"""
+        logger.warning(f"JWT error: {str(error)}")
+        return jsonify({"msg": str(error)}), 401
+
+    @app.errorhandler(DecodeError)
+    def handle_decode_error(error):
+        """Handle JWT decode errors"""
+        logger.warning(f"JWT decode error: {str(error)}")
+        return jsonify({"msg": str(error)}), 401
+
+    @app.errorhandler(InvalidTokenError)
+    def handle_invalid_token_error(error):
+        """Handle invalid token errors"""
+        logger.warning(f"Invalid token error: {str(error)}")
+        return jsonify({"msg": str(error)}), 401
 
 
 def create_error_response(message, status_code=400, error_type="Error"):

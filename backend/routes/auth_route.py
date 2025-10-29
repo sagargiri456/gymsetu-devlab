@@ -1,6 +1,5 @@
-from flask import Blueprint, request, jsonify
-from app import db
-from models.gym import Gym
+from flask import Blueprint, request, jsonify, current_app
+from flask_sqlalchemy import SQLAlchemy
 from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
 from utils.email_utils import send_password_reset_email
 from utils.auth_utils import owner_required, get_current_gym
@@ -21,6 +20,8 @@ auth_bp = Blueprint("auth", __name__, url_prefix="/api/auth")
 @validate_json_request
 @handle_database_errors
 def register():
+    from models.gym import Gym
+
     data = request.get_json()
 
     # Validate registration data
@@ -30,7 +31,6 @@ def register():
     existing_gym = Gym.query.filter_by(email=data["email"]).first()
     if existing_gym:
         return jsonify({"error": "Email already exists"}), 409
-
     gym = Gym(
         name=data["name"],
         address=data["address"],
@@ -42,6 +42,8 @@ def register():
         password=data["password"],
     )
     gym.set_password(data["password"])
+    from database import db
+
     db.session.add(gym)
     db.session.commit()
     return jsonify({"success": True, "message": "Gym registered successfully"}), 201
@@ -50,6 +52,10 @@ def register():
 @auth_bp.route("/login", methods=["POST"])
 @validate_json_request
 def login():
+    from models.gym import Gym
+    import logging
+
+    logger = logging.getLogger(__name__)
     data = request.get_json()
 
     # Validate login data
@@ -57,9 +63,19 @@ def login():
 
     gym = Gym.query.filter_by(email=data["email"]).first()
     if gym and gym.check_password(data["password"]):
+        # Ensure gym.id is valid and convert to string
+        gym_id = gym.id
+        logger.info(f"Creating token for gym_id: {gym_id}, type: {type(gym_id)}")
+
+        if gym_id is None:
+            logger.error("Gym ID is None, cannot create token")
+            return jsonify({"message": "Invalid user data"}), 500
+
         access_token = create_access_token(
-            identity=gym.id
+            identity=str(gym_id)
         )  # used to create a JWT token for the user session.
+
+        logger.info(f"Token created successfully for gym_id: {gym_id}")
         return (
             jsonify(
                 {
@@ -96,6 +112,9 @@ def refresh():
 @validate_json_request
 @handle_database_errors
 def forgot_password():
+    from models.gym import Gym
+    from database import db
+
     data = request.get_json()
 
     # Validate email format
@@ -132,6 +151,9 @@ def forgot_password():
 @validate_json_request
 @handle_database_errors
 def reset_password():
+    from models.gym import Gym
+    from database import db
+
     data = request.get_json()
 
     # Validate password reset data
@@ -153,6 +175,9 @@ def reset_password():
 @validate_json_request
 @handle_database_errors
 def change_password():
+    from models.gym import Gym
+    from database import db
+
     data = request.get_json()
 
     # Validate change password data
@@ -171,8 +196,9 @@ def change_password():
 
 @auth_bp.route("/get_gym_profile", methods=["GET"])
 def get_gym_profile():
-    data = request.get_json()
-    email = data["email"]
+    from models.gym import Gym
+
+    email = request.args.get("email")
     gym = Gym.query.filter_by(email=email).first()
     return (
         jsonify({"message": "gym profile fetched successfully", "gym": gym.to_dict()}),
@@ -183,6 +209,9 @@ def get_gym_profile():
 
 @auth_bp.route("/update_gym_profile", methods=["PUT"])
 def update_gym_profile():
+    from models.gym import Gym
+    from database import db
+
     data = request.get_json()
     email = data["email"]
     name = data["name"]
@@ -206,6 +235,9 @@ def update_gym_profile():
 
 @auth_bp.route("/delete_gym_profile", methods=["DELETE"])
 def delete_gym_profile():
+    from models.gym import Gym
+    from database import db
+
     data = request.get_json()
     email = data["email"]
     gym = Gym.query.filter_by(email=email).first()
@@ -218,8 +250,9 @@ def delete_gym_profile():
 
 @auth_bp.route("/get_gym_by_id", methods=["GET"])
 def get_gym_by_id():
-    data = request.get_json()
-    id = data["id"]
+    from models.gym import Gym
+
+    id = request.args.get("id")
     gym = Gym.query.filter_by(id=id).first()
     return (
         jsonify({"message": "gym fetched successfully", "gym": gym.to_dict()}),
@@ -230,6 +263,8 @@ def get_gym_by_id():
 
 @auth_bp.route("/get_all_gyms", methods=["GET"])
 def get_all_gyms():
+    from models.gym import Gym
+
     gyms = Gym.query.all()
     return (
         jsonify(

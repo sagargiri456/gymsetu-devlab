@@ -1,10 +1,43 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { 
+  faFacebook, 
+  faPinterest, 
+  faYoutube, 
+  faGithub 
+} from "@fortawesome/free-brands-svg-icons";
 
 export default function LandingPage() {
-  const [darkMode, setDarkMode] = useState(false);
+  // Initialize from localStorage
+  const [darkMode, setDarkMode] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('darkMode');
+      if (saved !== null) {
+        return saved === 'true';
+      }
+      return document.documentElement.classList.contains('dark');
+    }
+    return false;
+  });
+
+  // Initialize dark mode on mount and sync with document
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('darkMode');
+      const shouldBeDark = saved === 'true' || document.documentElement.classList.contains('dark');
+      
+      if (shouldBeDark) {
+        document.documentElement.classList.add('dark');
+        setDarkMode(true);
+      } else {
+        document.documentElement.classList.remove('dark');
+        setDarkMode(false);
+      }
+    }
+  }, []);
 
   const baseShadow = darkMode
     ? "bg-[#2b2b2b] shadow-[8px_8px_16px_rgba(0,0,0,0.3),_-8px_-8px_16px_rgba(255,255,255,0.1)]"
@@ -22,7 +55,22 @@ export default function LandingPage() {
       {/* === Theme Toggle === */}
       <div className="w-full flex justify-end p-6">
         <button
-          onClick={() => setDarkMode(!darkMode)}
+          onClick={() => {
+            const newDarkMode = !darkMode;
+            setDarkMode(newDarkMode);
+            
+            // Save to localStorage
+            if (typeof window !== 'undefined') {
+              localStorage.setItem('darkMode', newDarkMode.toString());
+            }
+            
+            // Toggle dark class on document element
+            if (newDarkMode) {
+              document.documentElement.classList.add('dark');
+            } else {
+              document.documentElement.classList.remove('dark');
+            }
+          }}
           className={`px-4 py-2 rounded-xl font-medium transition-all duration-300 ${baseShadow}`}
         >
           {darkMode ? "☀️ Light Mode" : "🌙 Dark Mode"}
@@ -143,6 +191,50 @@ export default function LandingPage() {
         >
           Start Your Free Trial with GymSetu
         </motion.button>
+        
+        {/* Social Media Buttons */}
+        <div className="mt-8 flex justify-center space-x-4">
+          <motion.button
+            whileHover={{ scale: 1.1 }}
+            whileTap={{ scale: 0.95 }}
+            className={`w-12 h-12 rounded-full flex items-center justify-center transition-all duration-300 ${baseShadow} ${insetShadow} text-blue-600 hover:text-blue-700`}
+            aria-label="Facebook"
+            title="Follow us on Facebook"
+          >
+            <FontAwesomeIcon icon={faFacebook} size="lg" />
+          </motion.button>
+          
+          <motion.button
+            whileHover={{ scale: 1.1 }}
+            whileTap={{ scale: 0.95 }}
+            className={`w-12 h-12 rounded-full flex items-center justify-center transition-all duration-300 ${baseShadow} ${insetShadow} text-red-600 hover:text-red-700`}
+            aria-label="Pinterest"
+            title="Follow us on Pinterest"
+          >
+            <FontAwesomeIcon icon={faPinterest} size="lg" />
+          </motion.button>
+          
+          <motion.button
+            whileHover={{ scale: 1.1 }}
+            whileTap={{ scale: 0.95 }}
+            className={`w-12 h-12 rounded-full flex items-center justify-center transition-all duration-300 ${baseShadow} ${insetShadow} text-red-600 hover:text-red-700`}
+            aria-label="YouTube"
+            title="Subscribe to our YouTube channel"
+          >
+            <FontAwesomeIcon icon={faYoutube} size="lg" />
+          </motion.button>
+          
+          <motion.button
+            whileHover={{ scale: 1.1 }}
+            whileTap={{ scale: 0.95 }}
+            className={`w-12 h-12 rounded-full flex items-center justify-center transition-all duration-300 ${baseShadow} ${insetShadow} text-gray-700 hover:text-gray-800`}
+            aria-label="GitHub"
+            title="Check out our GitHub"
+          >
+            <FontAwesomeIcon icon={faGithub} size="lg" />
+          </motion.button>
+        </div>
+        
         <p className="mt-6 opacity-70 text-sm">
           © {new Date().getFullYear()} GymSetu. All rights reserved.
         </p>

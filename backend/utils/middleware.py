@@ -18,8 +18,13 @@ def request_logging_middleware(app):
             f"Request: {request.method} {request.path} from {request.remote_addr}"
         )
 
-        if request.is_json and request.get_json():
-            logger.info(f"Request data: {request.get_json()}")
+        if request.is_json:
+            try:
+                request_data = request.get_json()
+                if request_data:
+                    logger.info(f"Request data: {request_data}")
+            except Exception as e:
+                logger.warning(f"Failed to parse JSON data: {str(e)}")
 
     @app.after_request
     def log_response_info(response):

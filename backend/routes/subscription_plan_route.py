@@ -1,6 +1,6 @@
 from flask import Blueprint
 from models.subscription_plan import SubscriptionPlan
-from app import db
+from database import db
 from flask import request, jsonify
 from utils.auth_utils import owner_required
 from utils.validation import validate_subscription_plan_data, validate_json_request
@@ -8,7 +8,7 @@ from utils.middleware import handle_database_errors
 
 
 subscription_plan_route = Blueprint(
-    "subscription_plan_route", __name__, prefix_url="/api/subscription_plan"
+    "subscription_plan_route", __name__, url_prefix="/api/subscription_plan"
 )
 
 

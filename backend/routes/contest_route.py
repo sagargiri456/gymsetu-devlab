@@ -1,9 +1,9 @@
 from flask import Blueprint, request, jsonify
-from app import db
+from database import db
 from models.contest import Contest
 from models.participants import Participant
 from utils.auth_utils import owner_required
-from utils.validation import validate_contest_data, validate_json_request
+from utils.validation import validate_json_request
 from utils.middleware import handle_database_errors
 
 contest_bp = Blueprint("contest", __name__, url_prefix="/api/contest")
@@ -33,11 +33,9 @@ def add_contest(current_gym):
 
 @contest_bp.route("/get_contest_by_id", methods=["GET"])
 @owner_required
-@validate_json_request
 @handle_database_errors
 def get_contest_by_id(current_gym):
-    data = request.get_json()
-    contest_id = data["contest_id"]
+    contest_id = request.args.get("contest_id")
     contest = Contest.query.filter_by(id=contest_id, gym_id=current_gym.id).first()
     return (
         jsonify(
@@ -53,7 +51,6 @@ def get_contest_by_id(current_gym):
 
 @contest_bp.route("/get_all_contests", methods=["GET"])
 @owner_required
-@validate_json_request
 @handle_database_errors
 def get_all_contests(current_gym):
     contests = Contest.query.filter_by(gym_id=current_gym.id).all()
@@ -104,9 +101,9 @@ def update_contest(current_gym):
 
 @contest_bp.route("/get_all_participants", methods=["GET"])
 @owner_required
-@validate_json_request
 @handle_database_errors
-def get_all_participants(current_gym, contest_id):
+def get_all_participants(current_gym):
+    contest_id = request.args.get("contest_id")
     participants = Participant.query.filter_by(
         gym_id=current_gym.id, contest_id=contest_id
     ).all()
@@ -124,9 +121,10 @@ def get_all_participants(current_gym, contest_id):
 
 @contest_bp.route("/get_participant_by_id", methods=["GET"])
 @owner_required
-@validate_json_request
 @handle_database_errors
-def get_participant_by_id(current_gym, contest_id, participant_id):
+def get_participant_by_id(current_gym):
+    contest_id = request.args.get("contest_id")
+    participant_id = request.args.get("participant_id")
     participant = Participant.query.filter_by(
         id=participant_id, gym_id=current_gym.id, contest_id=contest_id
     ).first()
@@ -138,6 +136,67 @@ def get_participant_by_id(current_gym, contest_id, participant_id):
                 "success": True,
                 "message": "Participant fetched successfully",
                 "participant": participant.to_dict(),
+            }
+        ),
+        200,
+    )
+
+
+@contest_bp.route("/get_leaderboard", methods=["GET"])
+@owner_required
+@handle_database_errors
+def get_leaderboard(current_gym):
+    from models.members import Member
+
+    contest_id = request.args.get("contest_id")
+
+    # If contest_id not provided, get the first active contest
+    if not contest_id:
+        contest = Contest.query.filter_by(gym_id=current_gym.id).first()
+        if not contest:
+            return jsonify({"success": False, "message": "No contests found"}), 404
+        contest_id = contest.id
+    else:
+        contest = Contest.query.filter_by(id=contest_id, gym_id=current_gym.id).first()
+        if not contest:
+            return jsonify({"success": False, "message": "Contest not found"}), 404
+
+    # Get participants sorted by contest_rank
+    participants = (
+        Participant.query.filter_by(gym_id=current_gym.id, contest_id=contest_id)
+        .order_by(Participant.contest_rank.asc())
+        .all()
+    )
+
+    # Build leaderboard with member names
+    leaderboard = []
+    for participant in participants:
+        member = Member.query.get(participant.member_id)
+        member_name = member.name if member else f"Member #{participant.member_id}"
+
+        # Calculate score (using 1000 - rank*10 as a simple scoring system)
+        # You can modify this based on your actual scoring logic
+        score = 1000 - (participant.contest_rank - 1) * 10
+
+        leaderboard.append(
+            {
+                "id": participant.id,
+                "member_id": participant.member_id,
+                "contest_id": participant.contest_id,
+                "contest_rank": participant.contest_rank,
+                "participant_status": participant.participant_status,
+                "member_name": member_name,
+                "score": max(score, 0),  # Ensure score is not negative
+            }
+        )
+
+    return (
+        jsonify(
+            {
+                "success": True,
+                "message": "Leaderboard fetched successfully",
+                "contest": contest.to_dict(),
+                "leaderboard": leaderboard,
             }
         ),
         200,

@@ -1,5 +1,5 @@
 from flask import Blueprint, request, jsonify
-from app import db
+from database import db
 from models.subscription import Subscription
 from utils.auth_utils import owner_required
 from utils.validation import validate_subscription_data, validate_json_request
@@ -49,9 +49,8 @@ def add_subscription(current_gym):
 @subscription_bp.route("/get_subscription", methods=["GET"])
 @owner_required
 def get_subscription(current_gym):
-    data = request.get_json()
-    member_id = data["member_id"]
-    gym_id = data.get("gym_id", current_gym.id)
+    member_id = request.args.get("member_id")
+    gym_id = request.args.get("gym_id", current_gym.id)
     subscription = Subscription.query.filter_by(
         member_id=member_id, gym_id=gym_id
     ).first()
@@ -112,5 +111,23 @@ def delete_subscription(current_gym):
     db.session.commit()
     return (
         jsonify({"success": True, "message": "Subscription deleted successfully"}),
+        200,
+    )
+
+
+@subscription_bp.route("/get_all_subscriptions", methods=["GET"])
+@owner_required
+def get_all_subscriptions(current_gym):
+    subscriptions = Subscription.query.filter_by(gym_id=current_gym.id).all()
+    return (
+        jsonify(
+            {
+                "success": True,
+                "message": "All subscriptions fetched successfully",
+                "subscriptions": [
+                    subscription.to_dict() for subscription in subscriptions
+                ],
+            }
+        ),
         200,
     )

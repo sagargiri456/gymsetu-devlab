@@ -1,5 +1,5 @@
 'use client';
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import styled from "styled-components";
 import {
   MdMenu,
@@ -123,12 +123,44 @@ const StyledWrapper = styled.div`
 
 // Dark Mode Toggle Component
 const DarkModeToggle: React.FC = () => {
-  const [isDarkMode, setIsDarkMode] = useState(false);
+  // Initialize from localStorage, default to false
+  const [isDarkMode, setIsDarkMode] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('darkMode');
+      if (saved !== null) {
+        return saved === 'true';
+      }
+      // Check if dark class is already on document (for initial page load)
+      return document.documentElement.classList.contains('dark');
+    }
+    return false;
+  });
+
+  // Initialize dark mode on mount
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('darkMode');
+      const shouldBeDark = saved === 'true' || document.documentElement.classList.contains('dark');
+      
+      if (shouldBeDark) {
+        document.documentElement.classList.add('dark');
+        setIsDarkMode(true);
+      } else {
+        document.documentElement.classList.remove('dark');
+        setIsDarkMode(false);
+      }
+    }
+  }, []);
 
   const toggleDarkMode = (e: React.ChangeEvent<HTMLInputElement>) => {
     const checked = e.target.checked;
     console.log('Dark mode toggle clicked:', checked);
     setIsDarkMode(checked);
+    
+    // Save to localStorage
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('darkMode', checked.toString());
+    }
     
     // Toggle dark class on document element
     if (checked) {

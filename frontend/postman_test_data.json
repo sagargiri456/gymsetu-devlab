@@ -1,0 +1,354 @@
+{
+  "info": {
+    "name": "GymSetu API Test Data",
+    "description": "Test data for GymSetu backend API endpoints",
+    "version": "1.0.0"
+  },
+  "auth": {
+    "type": "Bearer Token",
+    "token": "your_access_token_here"
+  },
+  "base_url": "http://127.0.0.1:5000",
+  "endpoints": {
+    "auth": {
+      "login": {
+        "method": "POST",
+        "url": "{{base_url}}/api/auth/login",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "email": "admin@gmail.com",
+          "password": "admin123"
+        }
+      },
+      "register": {
+        "method": "POST",
+        "url": "{{base_url}}/api/auth/register",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "name": "John Doe",
+          "email": "john.doe@example.com",
+          "password": "password123",
+          "phone": "1234567890",
+          "address": "123 Main Street",
+          "city": "New York",
+          "state": "NY",
+          "zip": "10001"
+        }
+      }
+    },
+    "members": {
+      "add_member": {
+        "method": "POST",
+        "url": "{{base_url}}/api/members/add_member",
+        "headers": {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer {{token}}"
+        },
+        "body": {
+          "name": "Alice Johnson",
+          "email": "alice.johnson@example.com",
+          "phone": "555-0123",
+          "address": "456 Oak Avenue",
+          "city": "Los Angeles",
+          "state": "CA",
+          "zip": "90210",
+          "gym_id": 1
+        }
+      },
+      "get_members": {
+        "method": "GET",
+        "url": "{{base_url}}/api/members/get_members",
+        "headers": {
+          "Authorization": "Bearer {{token}}"
+        }
+      }
+    },
+    "trainers": {
+      "add_trainer": {
+        "method": "POST",
+        "url": "{{base_url}}/api/trainers/add_trainer",
+        "headers": {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer {{token}}"
+        },
+        "body": {
+          "name": "Mike Trainer",
+          "email": "mike.trainer@example.com",
+          "phone": "555-0456",
+          "address": "789 Pine Street",
+          "city": "Chicago",
+          "state": "IL",
+          "zip": "60601"
+        }
+      },
+      "get_trainers": {
+        "method": "GET",
+        "url": "{{base_url}}/api/trainers/get_trainers",
+        "headers": {
+          "Authorization": "Bearer {{token}}"
+        }
+      }
+    },
+    "contests": {
+      "add_contest": {
+        "method": "POST",
+        "url": "{{base_url}}/api/contests/add_contest",
+        "headers": {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer {{token}}"
+        },
+        "body": {
+          "name": "Winter Fitness Challenge",
+          "description": "Compete in various fitness activities and win prizes!",
+          "banner_link": "https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?auto=format&fit=crop&w=800&q=60",
+          "start_date": "2024-12-01T00:00:00.000Z",
+          "end_date": "2024-12-31T23:59:59.000Z",
+          "gym_id": 1
+        }
+      },
+      "get_contests": {
+        "method": "GET",
+        "url": "{{base_url}}/api/contests/get_contests",
+        "headers": {
+          "Authorization": "Bearer {{token}}"
+        }
+      }
+    },
+    "participants": {
+      "add_participant": {
+        "method": "POST",
+        "url": "{{base_url}}/api/participants/add_participant",
+        "headers": {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer {{token}}"
+        },
+        "body": {
+          "member_id": 1,
+          "contest_id": 1,
+          "contest_rank": 1,
+          "gym_id": 1,
+          "participant_status": "Active"
+        }
+      },
+      "get_participants": {
+        "method": "GET",
+        "url": "{{base_url}}/api/participants/get_participants",
+        "headers": {
+          "Authorization": "Bearer {{token}}"
+        }
+      }
+    },
+    "subscriptions": {
+      "add_subscription": {
+        "method": "POST",
+        "url": "{{base_url}}/api/subscriptions/add_subscription",
+        "headers": {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer {{token}}"
+        },
+        "body": {
+          "member_id": 1,
+          "gym_id": 1,
+          "subscription_plan": "Monthly Premium (30 days)",
+          "subscription_status": "active",
+          "start_date": "2024-01-01T00:00:00.000Z",
+          "end_date": "2024-01-31T23:59:59.000Z"
+        }
+      },
+      "get_subscriptions": {
+        "method": "GET",
+        "url": "{{base_url}}/api/subscriptions/get_subscriptions",
+        "headers": {
+          "Authorization": "Bearer {{token}}"
+        }
+      }
+    },
+    "subscription_plans": {
+      "add_subscription_plan": {
+        "method": "POST",
+        "url": "{{base_url}}/api/subscription_plans/add_subscription_plan",
+        "headers": {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer {{token}}"
+        },
+        "body": {
+          "plan_name": "Premium Annual",
+          "plan_description": "Full access to all gym facilities for 365 days",
+          "plan_duration": 365,
+          "plan_price": 299.99,
+          "gym_id": 1
+        }
+      },
+      "get_subscription_plans": {
+        "method": "GET",
+        "url": "{{base_url}}/api/subscription_plans/get_subscription_plans",
+        "headers": {
+          "Authorization": "Bearer {{token}}"
+        }
+      }
+    }
+  },
+  "sample_data": {
+    "members": [
+      {
+        "name": "John Smith",
+        "email": "john.smith@example.com",
+        "phone": "555-0001",
+        "address": "123 Main Street",
+        "city": "New York",
+        "state": "NY",
+        "zip": "10001",
+        "gym_id": 1
+      },
+      {
+        "name": "Sarah Wilson",
+        "email": "sarah.wilson@example.com",
+        "phone": "555-0002",
+        "address": "456 Oak Avenue",
+        "city": "Los Angeles",
+        "state": "CA",
+        "zip": "90210",
+        "gym_id": 1
+      },
+      {
+        "name": "Mike Chen",
+        "email": "mike.chen@example.com",
+        "phone": "555-0003",
+        "address": "789 Pine Street",
+        "city": "Chicago",
+        "state": "IL",
+        "zip": "60601",
+        "gym_id": 2
+      }
+    ],
+    "trainers": [
+      {
+        "name": "Alex Johnson",
+        "email": "alex.johnson@example.com",
+        "phone": "555-1001",
+        "address": "123 Trainer Lane",
+        "city": "New York",
+        "state": "NY",
+        "zip": "10001"
+      },
+      {
+        "name": "Maria Gomez",
+        "email": "maria.gomez@example.com",
+        "phone": "555-1002",
+        "address": "456 Fitness Ave",
+        "city": "Los Angeles",
+        "state": "CA",
+        "zip": "90210"
+      }
+    ],
+    "contests": [
+      {
+        "name": "Summer Strength Challenge",
+        "description": "Compete to lift your limits and earn rewards!",
+        "banner_link": "https://images.unsplash.com/photo-1598970434795-0c54fe7c0648?auto=format&fit=crop&w=800&q=60",
+        "start_date": "2024-06-01T00:00:00.000Z",
+        "end_date": "2024-08-31T23:59:59.000Z",
+        "gym_id": 1
+      },
+      {
+        "name": "Cardio Marathon Week",
+        "description": "Push your endurance and top the leaderboard.",
+        "banner_link": "https://images.unsplash.com/photo-1605296867304-46d5465a13f1?auto=format&fit=crop&w=800&q=60",
+        "start_date": "2024-07-01T00:00:00.000Z",
+        "end_date": "2024-07-07T23:59:59.000Z",
+        "gym_id": 2
+      }
+    ],
+    "participants": [
+      {
+        "member_id": 1,
+        "contest_id": 1,
+        "contest_rank": 1,
+        "gym_id": 1,
+        "participant_status": "Active"
+      },
+      {
+        "member_id": 2,
+        "contest_id": 1,
+        "contest_rank": 2,
+        "gym_id": 1,
+        "participant_status": "Active"
+      },
+      {
+        "member_id": 3,
+        "contest_id": 2,
+        "contest_rank": 1,
+        "gym_id": 2,
+        "participant_status": "Active"
+      }
+    ],
+    "subscriptions": [
+      {
+        "member_id": 1,
+        "gym_id": 1,
+        "subscription_plan": "Annual Platinum (365 days)",
+        "subscription_status": "active",
+        "start_date": "2024-01-01T00:00:00.000Z",
+        "end_date": "2024-12-31T23:59:59.000Z"
+      },
+      {
+        "member_id": 2,
+        "gym_id": 1,
+        "subscription_plan": "Monthly Pass (30 days)",
+        "subscription_status": "active",
+        "start_date": "2024-11-01T00:00:00.000Z",
+        "end_date": "2024-11-30T23:59:59.000Z"
+      }
+    ],
+    "subscription_plans": [
+      {
+        "plan_name": "Basic Monthly",
+        "plan_description": "Basic gym access for 30 days",
+        "plan_duration": 30,
+        "plan_price": 29.99,
+        "gym_id": 1
+      },
+      {
+        "plan_name": "Premium Annual",
+        "plan_description": "Full access to all gym facilities for 365 days",
+        "plan_duration": 365,
+        "plan_price": 299.99,
+        "gym_id": 1
+      },
+      {
+        "plan_name": "Student Pass",
+        "plan_description": "Discounted access for students",
+        "plan_duration": 90,
+        "plan_price": 49.99,
+        "gym_id": 2
+      }
+    ]
+  },
+  "test_scenarios": {
+    "complete_workflow": [
+      "1. Register/Login to get access token",
+      "2. Add gyms (if gym management exists)",
+      "3. Add members",
+      "4. Add trainers", 
+      "5. Add subscription plans",
+      "6. Add subscriptions for members",
+      "7. Add contests",
+      "8. Add participants to contests",
+      "9. Retrieve all data to verify relationships"
+    ],
+    "data_relationships": {
+      "member_to_subscription": "member_id links to member.member_id",
+      "subscription_to_gym": "gym_id links to gym.gym_id", 
+      "participant_to_member": "member_id links to member.member_id",
+      "participant_to_contest": "contest_id links to contest.contest_id",
+      "participant_to_gym": "gym_id links to gym.gym_id",
+      "contest_to_gym": "gym_id links to gym.gym_id"
+    }
+  }
+}
+
+

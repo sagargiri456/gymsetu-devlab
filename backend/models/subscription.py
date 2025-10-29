@@ -1,4 +1,4 @@
-from app import db
+from database import db
 from datetime import datetime, timedelta
 
 
@@ -18,3 +18,15 @@ class Subscription(db.Model):
         return (
             datetime.utcnow() <= self.end_date and self.subscription_status == "active"
         )
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "member_id": self.member_id,
+            "gym_id": self.gym_id,
+            "subscription_plan": self.subscription_plan,
+            "subscription_status": self.subscription_status,
+            "start_date": self.start_date.isoformat() if self.start_date else None,
+            "end_date": self.end_date.isoformat() if self.end_date else None,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+        }

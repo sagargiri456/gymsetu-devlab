@@ -8,7 +8,7 @@ import {
   MdKeyboardArrowLeft,
   MdKeyboardArrowRight,
   MdMoreVert,
-  MdOutlineSportsGymnastics,
+  MdCardMembership,
 } from "react-icons/md";
 import Modal from "../../components/Modal";
 import { getApiUrl } from "@/lib/api";
@@ -27,95 +27,70 @@ const StatusBadge: React.FC<{ status: "Active" | "Inactive" }> = ({ status }) =>
   );
 };
 
-// --- Trainer Interface based on backend model ---
-interface Trainer {
+// --- SubscriptionPlan Interface based on backend model ---
+interface SubscriptionPlan {
   id: number;
   name: string;
-  email: string;
-  phone: string;
-  address: string;
-  city: string;
-  dp_link: string;
-  state: string;
-  zip: string;
-  created_at: string;
+  description: string;
+  price: number;
+  duration: number;
   gym_id: number;
+  created_at: string;
 }
 
 // Sample data will be replaced by API fetch
 
-const TrainersPage: React.FC = () => {
+const SubscriptionPlansPage: React.FC = () => {
   const router = useRouter();
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [trainersList, setTrainersList] = useState<Trainer[]>([]);
+  const [plansList, setPlansList] = useState<SubscriptionPlan[]>([]);
   const [loading, setLoading] = useState(true);
   const [formData, setFormData] = useState({
     name: "",
-    email: "",
-    phone: "",
-    address: "",
-    city: "",
-    dp_link: "",
-    state: "",
-    zip: "",
+    description: "",
+    duration: "",
+    price: "",
     gym_id: 1,
   });
 
   const headers = [
-    "Name",
-    "Email",
-    "Phone",
-    "Address",
-    "City",
-    "State",
-    "Zip",
+    "Plan Name",
+    "Description",
+    "Duration",
+    "Price",
     "Gym ID",
   ];
 
-  // Fetch trainers data from backend
+  // Fetch subscription plans data from backend
   useEffect(() => {
-    const fetchTrainers = async () => {
+    const fetchSubscriptionPlans = async () => {
       try {
-        const token = localStorage.getItem("access_token");
-        const apiUrl = getApiUrl("api/trainers/get_all_trainers");
-        console.log("Fetching trainers from:", apiUrl);
-        console.log("Authorization token:", token ? "Present" : "Missing");
-        
-        if (!token) {
-          console.error("No access token found. Please login again.");
-          setTrainersList([]);
-          setLoading(false);
-          return;
-        }
-        
-        const response = await fetch(apiUrl, {
+        const response = await fetch(getApiUrl("api/subscription_plans/get_subscription_plans"), {
           method: "GET",
           headers: {
             "Content-Type": "application/json",
-            "Authorization": `Bearer ${token}`,
+            "Authorization": `Bearer ${localStorage.getItem("access_token")}`,
           },
         });
         
-        console.log("Response status:", response.status);
-        
         if (response.ok) {
           const data = await response.json();
-          if (data.success && data.trainers) {
-            setTrainersList(data.trainers);
+          if (data.success && data.subscription_plans) {
+            setPlansList(data.subscription_plans);
           } else {
-            console.log("No trainers data found in response");
-            setTrainersList([]);
+            console.log("No subscription plans data found in response");
+            setPlansList([]);
           }
         } else {
           const errorText = await response.text();
-          console.error("Failed to fetch trainers:", response.status, response.statusText);
+          console.error("Failed to fetch subscription plans:", response.status, response.statusText);
           console.error("Error response:", errorText);
           
           // Check if it's an auth error
           if (response.status === 401) {
             try {
               const parsed = JSON.parse(errorText);
-              if (parsed?.msg?.toLowerCase().includes("subject must be a string") || parsed?.msg || parsed?.message) {
+              if (parsed?.msg?.toLowerCase().includes("subject must be a string") || parsed?.msg) {
                 localStorage.removeItem("access_token");
                 router.push("/login");
                 return;
@@ -129,7 +104,7 @@ const TrainersPage: React.FC = () => {
           // If it's a 400 or 404 error, the API might not exist yet
           if (response.status === 400 || response.status === 404) {
             console.log("API endpoint might not exist yet. Using empty array as fallback.");
-            setTrainersList([]);
+            setPlansList([]);
           }
         }
       } catch (error) {
@@ -139,72 +114,69 @@ const TrainersPage: React.FC = () => {
       }
     };
 
-    fetchTrainers();
+    fetchSubscriptionPlans();
   }, []);
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({
       ...prev,
-      [name]: name === 'gym_id' ? parseInt(value) || 1 : value
+      [name]: name === 'gym_id' || name === 'duration' || name === 'price' ? parseInt(value) || (name === 'gym_id' ? 1 : 0) : value
     }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const newTrainer: Trainer = {
-      id: trainersList.length + 1,
-      ...formData,
+    const newPlan: SubscriptionPlan = {
+      id: Math.max(...plansList.map(p => p.id)) + 1,
+      name: formData.name,
+      description: formData.description,
+      duration: parseInt(formData.duration),
+      price: parseInt(formData.price),
+      gym_id: formData.gym_id,
       created_at: new Date().toISOString(),
     };
-    try{
-      const response = await fetch(getApiUrl("api/trainers/add_trainer"), {
+
+    try {
+      const response = await fetch(getApiUrl("api/subscription_plans/add_subscription_plan"), {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           "Authorization": `Bearer ${localStorage.getItem("access_token")}`,
         },
         body: JSON.stringify({
-          name: formData.name,
-          email: formData.email,
-          phone: formData.phone,
-          address: formData.address,
-          city: formData.city,
-          dp_link: formData.dp_link,
-          state: formData.state,
-          zip: formData.zip,
-          gym_id: formData.gym_id,
+          name: newPlan.name,
+          description: newPlan.description,
+          duration: newPlan.duration,
+          price: newPlan.price,
+          gym_id: newPlan.gym_id,
         }),
       });
       
         if (response.ok) {
           const data = await response.json();
-          console.log("Add trainer response:", data);
-          if (data.success && data.trainer) {
-            // Use the trainer data returned from backend
-            setTrainersList(prev => [...prev, data.trainer]);
+          console.log("Add subscription plan response:", data);
+          if (data.success && data.subscription_plan) {
+            // Use the subscription plan data returned from backend
+            setPlansList(prev => [...prev, data.subscription_plan]);
           } else {
-            // Fallback to using the newTrainer we created
-            setTrainersList(prev => [...prev, newTrainer]);
+            // Fallback to using the newPlan we created
+            setPlansList(prev => [...prev, newPlan]);
           }
           setFormData({
             name: "",
-            email: "",
-            phone: "",
-            address: "",
-            city: "",
-            dp_link: "",
-            state: "",
-            zip: "",
+            description: "",
+            duration: "",
+            price: "",
             gym_id: 1,
           });
           setIsModalOpen(false);
-          alert("Trainer added successfully!");
+          alert("Subscription plan added successfully!");
         } else {
           const errorData = await response.json();
-          console.error("Failed to add trainer:", response.status, response.statusText);
+          console.error("Failed to add subscription plan:", response.status, response.statusText);
           console.error("Error response:", errorData);
-          alert(`Failed to add trainer: ${errorData.message || response.statusText}`);
+          alert(`Failed to add subscription plan: ${errorData.message || response.statusText}`);
         }
     } catch (error) {
       console.error("Network error:", error);
@@ -217,32 +189,32 @@ const TrainersPage: React.FC = () => {
       {/* Header */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between mb-8 lg:mb-12 gap-6 px-2">
         <h4 className="text-2xl lg:text-3xl font-bold text-gray-800 drop-shadow-[1px_1px_0px_#fff]">
-          Trainers
+          Subscription Plans
         </h4>
 
         <button
           onClick={() => setIsModalOpen(true)}
-          className="inline-flex items-center justify-center px-6 py-3 font-semibold text-sm rounded-full text-white bg-green-600 hover:bg-green-700 transition-all duration-200 min-w-[160px] shadow-lg hover:shadow-xl"
+          className="inline-flex items-center justify-center px-6 py-3 font-semibold text-sm rounded-full text-white bg-green-600 hover:bg-green-700 transition-all duration-200 min-w-[140px] shadow-lg hover:shadow-xl"
         >
           <MdAdd size={20} className="mr-2" />
-          New Trainer
+          New Plan
         </button>
       </div>
 
       {/* Card */}
       <div className="rounded-3xl bg-[#ecf0f3] shadow-[8px_8px_16px_#cbced1,-8px_-8px_16px_#ffffff] overflow-hidden">
         {/* Search and Filter */}
-        <div className="flex flex-col lg:flex-row items-center justify-between p-6 lg:p-8 gap-6">
-          <div className="relative flex items-center w-full lg:w-80 rounded-full px-5 py-3 bg-[#ecf0f3] shadow-[inset_5px_5px_10px_#cbced1,inset_-5px_-5px_10px_#ffffff]">
-            <MdSearch size={20} className="text-gray-500 mr-3" />
+        <div className="flex flex-col lg:flex-row items-center justify-between p-4 lg:p-6 gap-4">
+          <div className="relative flex items-center w-full lg:w-72 rounded-full px-4 py-2 bg-[#ecf0f3] shadow-[inset_5px_5px_10px_#cbced1,inset_-5px_-5px_10px_#ffffff]">
+            <MdSearch size={20} className="text-gray-500 mr-2" />
             <input
               type="text"
-              placeholder="Search trainer..."
+              placeholder="Search plans..."
               className="w-full bg-transparent border-none focus:outline-none text-sm text-gray-700 placeholder-gray-500"
             />
           </div>
 
-          <button className="p-4 rounded-full bg-[#ecf0f3] shadow-[5px_5px_10px_#cbced1,-5px_-5px_10px_#ffffff] hover:shadow-[inset_5px_5px_10px_#cbced1,inset_-5px_-5px_10px_#ffffff] transition-all text-gray-600 w-full lg:w-auto">
+          <button className="p-3 rounded-full bg-[#ecf0f3] shadow-[5px_5px_10px_#cbced1,-5px_-5px_10px_#ffffff] hover:shadow-[inset_5px_5px_10px_#cbced1,inset_-5px_-5px_10px_#ffffff] transition-all text-gray-600 w-full lg:w-auto">
             <MdFilterList size={22} />
           </button>
         </div>
@@ -251,7 +223,7 @@ const TrainersPage: React.FC = () => {
         <div className="overflow-x-auto">
           {loading ? (
             <div className="flex justify-center items-center py-12">
-              <div className="text-gray-500">Loading trainers...</div>
+              <div className="text-gray-500">Loading subscription plans...</div>
             </div>
           ) : (
             <table className="min-w-full text-sm text-gray-700">
@@ -276,9 +248,9 @@ const TrainersPage: React.FC = () => {
                 </tr>
               </thead>
               <tbody>
-                {trainersList.map((trainer) => (
+                {plansList.map((plan) => (
                 <tr
-                  key={trainer.id}
+                  key={plan.id}
                   className="border-b border-gray-200 hover:bg-[#d8d8d8] transition-all"
                 >
                   <td className="px-4 py-4">
@@ -290,20 +262,21 @@ const TrainersPage: React.FC = () => {
 
                   <td className="px-4 py-4">
                     <div className="w-10 h-10 rounded-full flex items-center justify-center bg-[#ecf0f3] shadow-[inset_3px_3px_6px_#cbced1,inset_-3px_-3px_6px_#ffffff]">
-                      <MdOutlineSportsGymnastics
+                      <MdCardMembership
                         size={22}
                         className="text-gray-600"
                       />
                     </div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">{trainer.name}</td>
-                  <td className="px-6 py-4 whitespace-nowrap">{trainer.email}</td>
-                  <td className="px-6 py-4 whitespace-nowrap">{trainer.phone}</td>
-                  <td className="px-6 py-4 whitespace-nowrap">{trainer.address}</td>
-                  <td className="px-6 py-4 whitespace-nowrap">{trainer.city}</td>
-                  <td className="px-6 py-4 whitespace-nowrap">{trainer.state}</td>
-                  <td className="px-6 py-4 whitespace-nowrap">{trainer.zip}</td>
-                  <td className="px-6 py-4 whitespace-nowrap">{trainer.gym_id}</td>
+                  <td className="px-6 py-4 whitespace-nowrap font-medium text-gray-800">{plan.name}</td>
+                  <td className="px-6 py-4 text-gray-700 max-w-xs">
+                    <div className="truncate" title={plan.description}>
+                      {plan.description}
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-gray-700">{plan.duration} days</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-gray-700 font-semibold">₹{plan.price.toLocaleString()}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-gray-700">{plan.gym_id}</td>
                   <td className="px-6 py-4 text-right whitespace-nowrap">
                     <button className="p-2 rounded-full bg-[#ecf0f3] shadow-[4px_4px_8px_#cbced1,-4px_-4px_8px_#ffffff] hover:shadow-[inset_4px_4px_8px_#cbced1,inset_-4px_-4px_8px_#ffffff] transition-all">
                       <MdMoreVert size={18} className="text-gray-700" />
@@ -337,16 +310,16 @@ const TrainersPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Add Trainer Modal */}
+      {/* Add Subscription Plan Modal */}
       <Modal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        title="Add New Trainer"
+        title="Add New Subscription Plan"
       >
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Name
+              Plan Name
             </label>
             <input
               type="text"
@@ -358,101 +331,46 @@ const TrainersPage: React.FC = () => {
             />
           </div>
 
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Description
+            </label>
+            <textarea
+              name="description"
+              value={formData.description}
+              onChange={handleInputChange}
+              required
+              rows={3}
+              className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-green-500 focus:border-transparent"
+            />
+          </div>
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Email
+                Duration (Days)
               </label>
               <input
-                type="email"
-                name="email"
-                value={formData.email}
+                type="number"
+                name="duration"
+                value={formData.duration}
                 onChange={handleInputChange}
                 required
+                min="1"
                 className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-green-500 focus:border-transparent"
               />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Phone
+                Price (₹)
               </label>
               <input
-                type="tel"
-                name="phone"
-                value={formData.phone}
+                type="number"
+                name="price"
+                value={formData.price}
                 onChange={handleInputChange}
                 required
-                className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-green-500 focus:border-transparent"
-              />
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Address
-            </label>
-            <input
-              type="text"
-              name="address"
-              value={formData.address}
-              onChange={handleInputChange}
-              required
-              className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-green-500 focus:border-transparent"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Profile Picture URL
-            </label>
-            <input
-              type="url"
-              name="dp_link"
-              value={formData.dp_link}
-              onChange={handleInputChange}
-              required
-              placeholder="https://example.com/profile.jpg"
-              className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-green-500 focus:border-transparent"
-            />
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                City
-              </label>
-              <input
-                type="text"
-                name="city"
-                value={formData.city}
-                onChange={handleInputChange}
-                required
-                className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-green-500 focus:border-transparent"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                State
-              </label>
-              <input
-                type="text"
-                name="state"
-                value={formData.state}
-                onChange={handleInputChange}
-                required
-                className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-green-500 focus:border-transparent"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Zip Code
-              </label>
-              <input
-                type="text"
-                name="zip"
-                value={formData.zip}
-                onChange={handleInputChange}
-                required
+                min="0"
                 className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-green-500 focus:border-transparent"
               />
             </div>
@@ -485,7 +403,7 @@ const TrainersPage: React.FC = () => {
               type="submit"
               className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
             >
-              Add Trainer
+              Add Plan
             </button>
           </div>
         </form>
@@ -494,4 +412,4 @@ const TrainersPage: React.FC = () => {
   );
 };
 
-export default TrainersPage;
+export default SubscriptionPlansPage;

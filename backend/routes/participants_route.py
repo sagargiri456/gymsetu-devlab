@@ -1,5 +1,5 @@
 from flask import Blueprint, request, jsonify
-from app import db
+from database import db
 from models.participants import Participant
 from utils.auth_utils import owner_required
 from utils.validation import validate_json_request

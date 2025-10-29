@@ -102,7 +102,7 @@ const DashboardPage: React.FC = () => {
 
   return (
     // Main container with proper positioning for sidebar and topbar
-    <div className="ml-0 lg:ml-64 pt-16 p-4 sm:p-6 lg:p-10 min-h-screen bg-[#ecf0f3]">
+    <div className="ml-0 lg:ml-64 pt-16 lg:pt-24 p-4 sm:p-6 lg:p-10 min-h-screen bg-[#ecf0f3]">
       
       {/* Welcome Header */}
       <div className="mb-8">

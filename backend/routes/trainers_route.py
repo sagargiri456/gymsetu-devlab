@@ -1,5 +1,5 @@
 from flask import Blueprint, request, jsonify
-from app import db
+from database import db
 from models.trainers import Trainer
 from utils.auth_utils import owner_required
 
@@ -32,12 +32,15 @@ def add_trainer(current_gym):
     return jsonify({"success": True, "message": "Trainer added successfully"}), 201
 
 
-@trainers_bp.route("/get_trainer", methods=["GET"])
+@trainers_bp.route("/get_trainers", methods=["GET"])
 @owner_required
 def get_trainer(current_gym):
-    data = request.get_json()
-    id = data["id"]
+    id = request.args.get("id")
+    if not id:
+        return jsonify({"success": False, "message": "ID parameter is required"}), 400
     trainer = Trainer.query.filter_by(id=id, gym_id=current_gym.id).first()
+    if not trainer:
+        return jsonify({"success": False, "message": "Trainer not found"}), 404
     return (
         jsonify(
             {
@@ -46,8 +49,7 @@ def get_trainer(current_gym):
                 "trainer": trainer.to_dict(),
             }
         ),
-        200 if trainer else jsonify({"success": False, "message": "Trainer not found"}),
-        404,
+        200,
     )
 
 
@@ -93,9 +95,12 @@ def delete_trainer(current_gym):
 @trainers_bp.route("/get_trainer_by_id", methods=["GET"])
 @owner_required
 def get_trainer_by_id(current_gym):
-    data = request.get_json()
-    id = data["id"]
+    id = request.args.get("id")
+    if not id:
+        return jsonify({"success": False, "message": "ID parameter is required"}), 400
     trainer = Trainer.query.filter_by(id=id, gym_id=current_gym.id).first()
+    if not trainer:
+        return jsonify({"success": False, "message": "Trainer not found"}), 404
     return (
         jsonify(
             {
@@ -104,8 +109,7 @@ def get_trainer_by_id(current_gym):
                 "trainer": trainer.to_dict(),
             }
         ),
-        200 if trainer else jsonify({"success": False, "message": "Trainer not found"}),
-        404,
+        200,
     )
 
 

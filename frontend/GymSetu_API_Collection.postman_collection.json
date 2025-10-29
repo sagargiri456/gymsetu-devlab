@@ -1,0 +1,380 @@
+{
+  "info": {
+    "name": "GymSetu API Collection",
+    "description": "Complete API collection for GymSetu backend testing",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://127.0.0.1:5000",
+      "type": "string"
+    },
+    {
+      "key": "access_token",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Authentication",
+      "item": [
+        {
+          "name": "Login",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@gmail.com\",\n  \"password\": \"admin123\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/login",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "login"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Register",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"John Doe\",\n  \"email\": \"john.doe@example.com\",\n  \"password\": \"password123\",\n  \"phone\": \"1234567890\",\n  \"address\": \"123 Main Street\",\n  \"city\": \"New York\",\n  \"state\": \"NY\",\n  \"zip\": \"10001\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/register",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "register"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Members",
+      "item": [
+        {
+          "name": "Add Member",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Alice Johnson\",\n  \"email\": \"alice.johnson@example.com\",\n  \"phone\": \"555-0123\",\n  \"address\": \"456 Oak Avenue\",\n  \"city\": \"Los Angeles\",\n  \"state\": \"CA\",\n  \"zip\": \"90210\",\n  \"gym_id\": 1\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/members/add_member",
+              "host": ["{{base_url}}"],
+              "path": ["api", "members", "add_member"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Members",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/members/get_members",
+              "host": ["{{base_url}}"],
+              "path": ["api", "members", "get_members"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Trainers",
+      "item": [
+        {
+          "name": "Add Trainer",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Mike Trainer\",\n  \"email\": \"mike.trainer@example.com\",\n  \"phone\": \"555-0456\",\n  \"address\": \"789 Pine Street\",\n  \"city\": \"Chicago\",\n  \"state\": \"IL\",\n  \"zip\": \"60601\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/trainers/add_trainer",
+              "host": ["{{base_url}}"],
+              "path": ["api", "trainers", "add_trainer"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Trainers",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/trainers/get_trainers",
+              "host": ["{{base_url}}"],
+              "path": ["api", "trainers", "get_trainers"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Contests",
+      "item": [
+        {
+          "name": "Add Contest",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Winter Fitness Challenge\",\n  \"description\": \"Compete in various fitness activities and win prizes!\",\n  \"banner_link\": \"https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?auto=format&fit=crop&w=800&q=60\",\n  \"start_date\": \"2024-12-01T00:00:00.000Z\",\n  \"end_date\": \"2024-12-31T23:59:59.000Z\",\n  \"gym_id\": 1\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/contests/add_contest",
+              "host": ["{{base_url}}"],
+              "path": ["api", "contests", "add_contest"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Contests",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/contests/get_contests",
+              "host": ["{{base_url}}"],
+              "path": ["api", "contests", "get_contests"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Participants",
+      "item": [
+        {
+          "name": "Add Participant",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"member_id\": 1,\n  \"contest_id\": 1,\n  \"contest_rank\": 1,\n  \"gym_id\": 1,\n  \"participant_status\": \"Active\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/participants/add_participant",
+              "host": ["{{base_url}}"],
+              "path": ["api", "participants", "add_participant"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Participants",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/participants/get_participants",
+              "host": ["{{base_url}}"],
+              "path": ["api", "participants", "get_participants"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Subscriptions",
+      "item": [
+        {
+          "name": "Add Subscription",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"member_id\": 1,\n  \"gym_id\": 1,\n  \"subscription_plan\": \"Monthly Premium (30 days)\",\n  \"subscription_status\": \"active\",\n  \"start_date\": \"2024-01-01T00:00:00.000Z\",\n  \"end_date\": \"2024-01-31T23:59:59.000Z\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/subscriptions/add_subscription",
+              "host": ["{{base_url}}"],
+              "path": ["api", "subscriptions", "add_subscription"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Subscriptions",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/subscriptions/get_subscriptions",
+              "host": ["{{base_url}}"],
+              "path": ["api", "subscriptions", "get_subscriptions"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Subscription Plans",
+      "item": [
+        {
+          "name": "Add Subscription Plan",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"plan_name\": \"Premium Annual\",\n  \"plan_description\": \"Full access to all gym facilities for 365 days\",\n  \"plan_duration\": 365,\n  \"plan_price\": 299.99,\n  \"gym_id\": 1\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/subscription_plans/add_subscription_plan",
+              "host": ["{{base_url}}"],
+              "path": ["api", "subscription_plans", "add_subscription_plan"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Subscription Plans",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/subscription_plans/get_subscription_plans",
+              "host": ["{{base_url}}"],
+              "path": ["api", "subscription_plans", "get_subscription_plans"]
+            }
+          },
+          "response": []
+        }
+      ]
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Auto-set access token from login response",
+          "if (pm.response && pm.response.json() && pm.response.json().access_token) {",
+          "    pm.collectionVariables.set('access_token', pm.response.json().access_token);",
+          "}"
+        ]
+      }
+    }
+  ]
+}
+
+

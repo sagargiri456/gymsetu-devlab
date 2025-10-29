@@ -1,5 +1,6 @@
 'use client';
 import { useState } from 'react';
+import { getApiUrl } from "@/lib/api";
 
 export default function RegisterGym() {
   const [formData, setFormData] = useState({
@@ -25,7 +26,7 @@ export default function RegisterGym() {
     setMessage('');
 
     try {
-      const res = await fetch('http://127.0.0.1:5000/register', {
+      const res = await fetch(getApiUrl('api/auth/register'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData),

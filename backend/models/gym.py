@@ -1,4 +1,4 @@
-from app import db
+from database import db
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime
 
@@ -7,12 +7,13 @@ class Gym(db.Model):
     id = db.Column("gym_id", db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
     address = db.Column(db.String(100), nullable=False)
+    logo_link = db.Column(db.String(200), nullable=True)
     city = db.Column(db.String(100), nullable=False)
     state = db.Column(db.String(100), nullable=False)
     zip = db.Column(db.String(100), nullable=False)
     phone = db.Column(db.String(100), nullable=False)
     email = db.Column(db.String(100), nullable=False, unique=True)
-    password = db.Column(db.String(100), nullable=False)
+    password = db.Column(db.String(200), nullable=False)
     otp = db.Column(db.String(10), nullable=True)
     role = db.Column(db.String(20), nullable=False, default="owner")
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
@@ -36,6 +37,7 @@ class Gym(db.Model):
             "id": self.id,
             "name": self.name,
             "address": self.address,
+            "logo_link": self.logo_link,
             "city": self.city,
             "state": self.state,
             "zip": self.zip,

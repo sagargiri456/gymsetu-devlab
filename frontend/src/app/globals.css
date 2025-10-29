@@ -381,3 +381,44 @@ body {
   border-color: #374151 !important;
 }
 
+/* Ensure Add buttons are always visible on desktop */
+@media (min-width: 1024px) {
+  .add-button-desktop {
+    display: inline-flex !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+  }
+}
+
+/* Force visibility for all add buttons on desktop */
+@media (min-width: 1024px) {
+  button[class*="New Member"],
+  button[class*="New Trainer"],
+  button[class*="Create Contest"],
+  button[class*="New Subscription"],
+  button[class*="New Plan"] {
+    display: inline-flex !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+  }
+}
+
+/* Ensure dashboard content is always visible below topbar */
+.dashboard-content {
+  position: relative;
+  z-index: 1;
+}
+
+/* Fix for topbar overlap issue */
+@media (min-width: 1024px) {
+  .dashboard-content {
+    padding-top: 96px !important; /* 24 * 4px = 96px for lg:pt-24 */
+  }
+}
+
+@media (max-width: 1023px) {
+  .dashboard-content {
+    padding-top: 64px !important; /* 16 * 4px = 64px for pt-16 */
+  }
+}
+

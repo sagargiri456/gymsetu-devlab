@@ -1,16 +1,15 @@
 from flask import Flask
-from flask_sqlalchemy import SQLAlchemy
 from flask_jwt_extended import JWTManager
 from flask_cors import CORS
 from config import Config
+from database import db
 from utils.error_handlers import register_error_handlers
 from utils.middleware import (
     request_logging_middleware,
-    cors_middleware,
     security_headers_middleware,
 )
+import os
 
-db = SQLAlchemy()
 jwt = JWTManager()
 cors = CORS()
 
@@ -21,8 +20,53 @@ def create_app():
     # given object and loads them into app.config. So lowercase variables are ignored.
     app.config.from_object(Config)
 
+    # Ensure JWT_SECRET_KEY is set
+    if not app.config.get("JWT_SECRET_KEY"):
+        app.config["JWT_SECRET_KEY"] = os.getenv(
+            "JWT_SECRET_KEY", "fallback-secret-key-change-in-production"
+        )
+
+    # Log for debugging
+    import logging
+
+    logging.basicConfig(level=logging.INFO)
+    logger = logging.getLogger(__name__)
+    logger.info(f"JWT_SECRET_KEY set: {bool(app.config.get('JWT_SECRET_KEY'))}")
+
     # init_app() is used to initialize the extensions with the app. just like middleware in express.
-    cors.init_app(app)
+    # CORS configuration - supports local development and production deployments
+    allowed_origins_str = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000")
+    allowed_origins = [
+        origin.strip() for origin in allowed_origins_str.split(",") if origin.strip()
+    ]
+
+    # Always allow localhost for local development
+    if "http://localhost:3000" not in allowed_origins:
+        allowed_origins.append("http://localhost:3000")
+
+    # Add frontend URL to allowed origins if in production
+    frontend_url = os.getenv("FRONTEND_URL", "").strip()
+    if frontend_url:
+        frontend_url_clean = frontend_url.rstrip("/")
+        if frontend_url_clean not in allowed_origins:
+            allowed_origins.append(frontend_url_clean)
+
+    # Remove duplicates and filter empty strings
+    allowed_origins = list(set(filter(None, allowed_origins)))
+
+    logger.info(f"CORS allowed origins: {allowed_origins}")
+
+    # Configure CORS with comprehensive settings
+    cors.init_app(
+        app,
+        origins=allowed_origins,
+        supports_credentials=True,
+        allow_headers=["Content-Type", "Authorization", "X-Requested-With"],
+        methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
+        expose_headers=["Content-Type"],
+        max_age=3600,  # Cache preflight requests for 1 hour
+    )
+
     db.init_app(app)
     jwt.init_app(app)
 
@@ -31,7 +75,6 @@ def create_app():
 
     # Register middleware
     request_logging_middleware(app)
-    cors_middleware(app)
     security_headers_middleware(app)
 
     # register_blueprint() is used to register the blueprints with the app. just like routes in express.
@@ -39,11 +82,29 @@ def create_app():
     from routes.members_route import members_bp
     from routes.subscription_plan_route import subscription_plan_route
     from routes.subscription_route import subscription_bp
+    from routes.trainers_route import trainers_bp
+    from routes.contest_route import contest_bp
+    from routes.participants_route import participants_bp
 
-    app.register_blueprint(auth_bp, url_prefix="/api")
+    app.register_blueprint(auth_bp)
     app.register_blueprint(members_bp)
     app.register_blueprint(subscription_plan_route)
     app.register_blueprint(subscription_bp)
+    app.register_blueprint(trainers_bp)
+    app.register_blueprint(contest_bp)
+    app.register_blueprint(participants_bp)
+
+    # Import models and create tables after everything is registered
+    with app.app_context():
+        from models.gym import Gym
+        from models.members import Member
+        from models.subscription import Subscription
+        from models.subscription_plan import SubscriptionPlan
+        from models.trainers import Trainer
+        from models.contest import Contest
+        from models.participants import Participant
+
+        db.create_all()
 
     return app
 

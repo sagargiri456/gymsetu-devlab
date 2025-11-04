@@ -83,7 +83,9 @@ const LeaderboardPage: React.FC = () => {
                 router.push("/login");
                 return;
               }
-            } catch (_) {}
+            } catch {
+              // Ignore parsing errors
+            }
             localStorage.removeItem("access_token");
             router.push("/login");
             return;
@@ -128,7 +130,7 @@ const LeaderboardPage: React.FC = () => {
   return (
     <div className="ml-0 lg:ml-64 pt-16 lg:pt-24 p-4 sm:p-6 lg:p-8 min-h-screen bg-[#ecf0f3] flex flex-col items-center py-8 sm:py-12 px-4 sm:px-6 lg:px-10">
       {/* Contest Header */}
-      <div className="w-full max-w-5xl bg-gray-100 rounded-3xl p-6 shadow-[5px_5px_15px_#d1d9e6,-5px_-5px_15px_#ffffff]">
+      <div className="w-full max-w-5xl bg-gray-100 rounded-3xl p-6 shadow-[5px_5px_15px_#d1d9e6,-5px_-5px_15px_#ffffff] mt-4 lg:mt-6">
         <Image
           src={contest.banner_link || defaultBanner}
           alt={contest.name}

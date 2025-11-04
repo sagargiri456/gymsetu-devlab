@@ -1,13 +1,29 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { getApiUrl } from "@/lib/api";
+import { isAuthenticated, verifyToken } from "@/lib/auth";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const router = useRouter();
+
+  // Check if user is already logged in on page load
+  useEffect(() => {
+    const checkAuth = async () => {
+      if (isAuthenticated()) {
+        // Verify token is still valid
+        const isValid = await verifyToken();
+        if (isValid) {
+          // Redirect to dashboard if already logged in
+          router.push("/dashboard");
+        }
+      }
+    };
+    checkAuth();
+  }, [router]);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -80,7 +96,7 @@ export default function LoginPage() {
           GymSetu
         </h1>
         <p className="text-center text-sm tracking-[3px] text-[#E91E63] mt-2">
-          Member Login
+          Gym Login
         </p>
 
         {/* Form */}
@@ -136,6 +152,18 @@ export default function LoginPage() {
             Login
           </button>
         </form>
+        
+        {/*Other Login */}
+        <div>
+            {/* Trainers Login */}
+          <div className="text-center mt-5 text-gray-400 text-sm">
+            <a href="/trainers/login" className="hover:text-[#FF8A00] transition">Trainers Login here</a>
+          </div>
+          {/* Members Login */}
+          <div className="text-center mt-5 text-gray-400 text-sm">
+            <a href="/members/login" className="hover:text-[#FF8A00] transition">Members Login here</a>
+          </div>
+        </div>
 
         {/* Links */}
         <div className="text-center mt-5 text-gray-400 text-sm">
@@ -146,7 +174,9 @@ export default function LoginPage() {
           <a href="/register" className="hover:text-[#FF8A00] transition">
             Signup
           </a>
+          
         </div>
+       
       </div>
     </main>
   );

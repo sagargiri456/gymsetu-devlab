@@ -130,7 +130,9 @@ const ParticipantsPage: React.FC = () => {
                 router.push("/login");
                 return;
               }
-            } catch (_) {}
+            } catch {
+              // Ignore parsing errors
+            }
             localStorage.removeItem("access_token");
             router.push("/login");
             return;
@@ -150,6 +152,7 @@ const ParticipantsPage: React.FC = () => {
     };
 
     fetchParticipants();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -231,7 +234,7 @@ const ParticipantsPage: React.FC = () => {
   return (
     <div className="ml-0 lg:ml-64 pt-16 lg:pt-24 p-6 sm:p-8 lg:p-12 min-h-screen bg-[#ecf0f3]">
       {/* Header */}
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between mb-8 lg:mb-12 gap-6 px-2">
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between mb-8 lg:mb-12 mt-4 lg:mt-6 gap-6 px-2">
         <h4 className="text-2xl lg:text-3xl font-bold text-gray-800 drop-shadow-[1px_1px_0px_#fff]">
           Participants
         </h4>

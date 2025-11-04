@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
@@ -10,22 +11,17 @@ import {
   faYoutube, 
   faGithub 
 } from "@fortawesome/free-brands-svg-icons";
+import { isAuthenticated, verifyToken } from "@/lib/auth";
 
 export default function LandingPage() {
-  // Initialize from localStorage
-  const [darkMode, setDarkMode] = useState(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('darkMode');
-      if (saved !== null) {
-        return saved === 'true';
-      }
-      return document.documentElement.classList.contains('dark');
-    }
-    return false;
-  });
+  const router = useRouter();
+  // Initialize to false to match server render (prevents hydration mismatch)
+  const [darkMode, setDarkMode] = useState(false);
+  const [mounted, setMounted] = useState(false);
 
   // Initialize dark mode on mount and sync with document
   useEffect(() => {
+    setMounted(true);
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('darkMode');
       const shouldBeDark = saved === 'true' || document.documentElement.classList.contains('dark');
@@ -40,18 +36,36 @@ export default function LandingPage() {
     }
   }, []);
 
-  const baseShadow = darkMode
-    ? "bg-[#2b2b2b] shadow-[8px_8px_16px_rgba(0,0,0,0.3),_-8px_-8px_16px_rgba(255,255,255,0.1)]"
-    : "bg-[#e0e5ec] shadow-[8px_8px_16px_rgba(0,0,0,0.15),_-8px_-8px_16px_rgba(255,255,255,0.7)]";
+  // Check if user is already logged in and redirect to dashboard
+  useEffect(() => {
+    const checkAuth = async () => {
+      if (isAuthenticated()) {
+        const isValid = await verifyToken();
+        if (isValid) {
+          router.push("/dashboard");
+        }
+      }
+    };
+    checkAuth();
+  }, [router]);
+
+  // Prevent hydration mismatch by using default styles until mounted
+  const baseShadow = (!mounted || !darkMode)
+    ? "bg-[#e0e5ec] shadow-[8px_8px_16px_rgba(0,0,0,0.15),_-8px_-8px_16px_rgba(255,255,255,0.7)]"
+    : "bg-[#2b2b2b] shadow-[8px_8px_16px_rgba(0,0,0,0.3),_-8px_-8px_16px_rgba(255,255,255,0.1)]";
 
   const insetShadow =
     "hover:shadow-[inset_4px_4px_8px_rgba(0,0,0,0.2),inset_-4px_-4px_8px_rgba(255,255,255,0.7)]";
 
+  const bgColor = (!mounted || !darkMode)
+    ? "bg-[#e0e5ec] text-gray-800"
+    : "bg-[#2b2b2b] text-gray-100";
+
+  const buttonText = (!mounted || !darkMode) ? "🌙 Dark Mode" : "☀️ Light Mode";
+
   return (
     <div
-      className={`min-h-screen transition-colors duration-500 ${
-        darkMode ? "bg-[#2b2b2b] text-gray-100" : "bg-[#e0e5ec] text-gray-800"
-      } flex flex-col items-center`}
+      className={`min-h-screen transition-colors duration-500 ${bgColor} flex flex-col items-center`}
     >
       {/* === Theme Toggle === */}
       <div className="w-full flex justify-end p-6">
@@ -74,7 +88,7 @@ export default function LandingPage() {
           }}
           className={`px-4 py-2 rounded-xl font-medium transition-all duration-300 ${baseShadow}`}
         >
-          {darkMode ? "☀️ Light Mode" : "🌙 Dark Mode"}
+          {buttonText}
         </button>
       </div>
 

@@ -1,4 +1,4 @@
-from flask import Flask
+from flask import Flask, jsonify, request
 from flask_jwt_extended import JWTManager
 from flask_cors import CORS
 from config import Config
@@ -49,9 +49,11 @@ def create_app():
         origin.strip() for origin in allowed_origins_str.split(",") if origin.strip()
     ]
 
-    # Always allow localhost for local development
+    # Always allow localhost and 127.0.0.1 for local development
     if "http://localhost:3000" not in allowed_origins:
         allowed_origins.append("http://localhost:3000")
+    if "http://127.0.0.1:3000" not in allowed_origins:
+        allowed_origins.append("http://127.0.0.1:3000")
 
     # Add frontend URL to allowed origins if in production
     frontend_url = os.getenv("FRONTEND_URL", "").strip()
@@ -74,6 +76,7 @@ def create_app():
         methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
         expose_headers=["Content-Type"],
         max_age=3600,  # Cache preflight requests for 1 hour
+        automatic_options=True,  # Automatically handle OPTIONS requests
     )
 
     # Initialize database with engine options
@@ -85,6 +88,38 @@ def create_app():
 
     jwt.init_app(app)
 
+    # Register JWT error callbacks for detailed logging
+    @jwt.expired_token_loader
+    def expired_token_callback(jwt_header, jwt_payload):
+        logger.warning(
+            f"Expired token on {request.method} {request.path} from {request.remote_addr}"
+        )
+        return jsonify({"msg": "Token has expired"}), 401
+
+    @jwt.invalid_token_loader
+    def invalid_token_callback(error):
+        auth_header = request.headers.get("Authorization", "Not provided")
+        logger.warning(
+            f"Invalid token on {request.method} {request.path}: {str(error)}. "
+            f"Authorization header: {'Present' if auth_header != 'Not provided' else 'Missing'}"
+        )
+        return jsonify({"msg": f"Invalid token: {str(error)}"}), 401
+
+    @jwt.unauthorized_loader
+    def missing_token_callback(error):
+        auth_header = request.headers.get("Authorization", "Not provided")
+        logger.warning(
+            f"Missing token on {request.method} {request.path}: {str(error)}. "
+            f"Authorization header: {'Present' if auth_header != 'Not provided' else 'Missing'}"
+        )
+        return jsonify({"msg": f"Authorization required: {str(error)}"}), 401
+
+    @jwt.token_in_blocklist_loader
+    def check_if_token_revoked(jwt_header, jwt_payload):
+        # Return True if token is in blocklist (revoked), False otherwise
+        # For now, we don't have a token blocklist, so always return False
+        return False
+
     # Register error handlers
     register_error_handlers(app)
 
@@ -94,6 +129,7 @@ def create_app():
 
     # register_blueprint() is used to register the blueprints with the app. just like routes in express.
     from routes.auth_route import auth_bp
+    from routes.gyms_route import gyms_bp
     from routes.members_route import members_bp
     from routes.subscription_plan_route import subscription_plan_route
     from routes.subscription_route import subscription_bp
@@ -102,6 +138,7 @@ def create_app():
     from routes.participants_route import participants_bp
 
     app.register_blueprint(auth_bp)
+    app.register_blueprint(gyms_bp)
     app.register_blueprint(members_bp)
     app.register_blueprint(subscription_plan_route)
     app.register_blueprint(subscription_bp)

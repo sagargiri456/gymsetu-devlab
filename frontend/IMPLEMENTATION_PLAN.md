@@ -139,3 +139,4 @@ class PushSubscription(db.Model):
 3. **Database**:
    - Migration script for new columns/tables
 
+

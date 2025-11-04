@@ -1,79 +1,60 @@
 "use client";
-import React, { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import {
-  MdAdd,
-  MdSearch,
-  MdFilterList,
-  MdKeyboardArrowLeft,
-  MdKeyboardArrowRight,
-  MdMoreVert,
-  MdPerson,
-} from "react-icons/md";
+import { MdAdd } from "react-icons/md";
+import MemberCard from "./MemberCard";
+import MemberModal from "./MemberModal";
 import Modal from "../../components/Modal";
 import { getApiUrl } from "@/lib/api";
 
-
-// --- Member Interface based on backend model ---
-interface Member {
+export interface Member {
   id: number;
   name: string;
   email: string;
   phone: string;
   address: string;
   city: string;
-  dp_link: string;
+  dp_link?: string | null;
   state: string;
   zip: string;
-  created_at: string;
-  gym_id: number;
+  created_at: string; // ISO date string from backend
+  expiration_date?: string | null; // ISO date string from backend
 }
 
-// Sample data will be replaced by API fetch
+type FilterType = "All" | "Active" | "Expired";
 
-const MembersPage: React.FC = () => {
+export default function MembersPage() {
   const router = useRouter();
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [membersList, setMembersList] = useState<Member[]>([]);
+  const [members, setMembers] = useState<Member[]>([]);
+  const [selectedMember, setSelectedMember] = useState<Member | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [filter, setFilter] = useState<FilterType>("All");
+  const [editingMember, setEditingMember] = useState<Member | null>(null);
+  const [dpLink, setDpLink] = useState("");
   const [formData, setFormData] = useState({
     name: "",
     email: "",
     phone: "",
     address: "",
     city: "",
-    dp_link: "",
     state: "",
     zip: "",
+    expiration_date: "",
     gym_id: 1,
   });
 
-  const tableHeaders = [
-    "Name",
-    "Email",
-    "Phone",
-    "Address",
-    "City",
-    "State",
-    "Zip",
-  ];
-
-  // Fetch members data from backend
   useEffect(() => {
     const fetchMembers = async () => {
       try {
         const token = localStorage.getItem("access_token");
-        const apiUrl = getApiUrl("api/members/get_members");
-        console.log("Fetching members from:", apiUrl);
-        console.log("Authorization token:", token ? "Present" : "Missing");
-        
         if (!token) {
-          console.error("No access token found. Please login again.");
-          setMembersList([]);
-          setLoading(false);
+          router.push("/login");
           return;
         }
-        
+        console.log("Token found");
+
+        const apiUrl = getApiUrl("/api/members/get_members");
         const response = await fetch(apiUrl, {
           method: "GET",
           headers: {
@@ -81,44 +62,31 @@ const MembersPage: React.FC = () => {
             "Authorization": `Bearer ${token}`,
           },
         });
-        
-        console.log("Response status:", response.status);
-        console.log("Response headers:", response.headers);
-        
+
         if (response.ok) {
           const data = await response.json();
-          console.log("Response data:", data);
           if (data.success && data.members) {
-            setMembersList(data.members);
+            setMembers(data.members);
+          } else if (Array.isArray(data)) {
+            // Fallback: if the API returns an array directly
+            setMembers(data);
           } else {
             console.log("No members data found in response");
-            setMembersList([]);
+            setMembers([]);
           }
+        } else if (response.status === 401) {
+          localStorage.removeItem("access_token");
+          router.push("/login");
+          return;
         } else {
-          const errorText = await response.text();
-          console.error("Failed to fetch members:", response.status, response.statusText);
-          console.error("Error response:", errorText);
-          
-          // Check if it's an auth error
-          if (response.status === 401) {
-            console.log("Authentication failed. Token may be invalid or expired.");
-            try {
-              const parsed = JSON.parse(errorText);
-              if (parsed?.msg?.toLowerCase().includes("subject must be a string") || parsed?.msg) {
-                localStorage.removeItem("access_token");
-                router.push("/login");
-                return;
-              }
-            } catch (_) {}
-            localStorage.removeItem("access_token");
-            router.push("/login");
-            return;
-          }
-          
           // If it's a 400 or 404 error, the API might not exist yet
           if (response.status === 400 || response.status === 404) {
             console.log("API endpoint might not exist yet. Using empty array as fallback.");
-            setMembersList([]);
+            setMembers([]);
+          } else {
+            const errorText = await response.text();
+            console.error("Failed to fetch members:", response.status, response.statusText);
+            console.error("Error response:", errorText);
           }
         }
       } catch (error) {
@@ -127,46 +95,125 @@ const MembersPage: React.FC = () => {
         setLoading(false);
       }
     };
-
     fetchMembers();
-  }, []);
+  }, [router]);
+
+  // Helper function to get member status (matching MemberCard logic)
+  const getMemberStatus = (member: Member): "Active" | "Expired" => {
+    // Use expiration_date if available, otherwise fallback to created_at + 30 days
+    if (member.expiration_date) {
+      const expiration = new Date(member.expiration_date);
+      const now = new Date();
+      return now <= expiration ? "Active" : "Expired";
+    }
+    // Fallback: calculate from created_at + 30 days
+    const created = new Date(member.created_at);
+    const now = new Date();
+    const diffDays = (now.getTime() - created.getTime()) / (1000 * 60 * 60 * 24);
+    return diffDays <= 30 ? "Active" : "Expired";
+  };
+
+  // Filter members based on selected filter
+  const filteredMembers = members.filter((member) => {
+    if (filter === "All") return true;
+    const status = getMemberStatus(member);
+    return status === filter;
+  });
+
+  const handleEditDp = (member: Member) => {
+    setEditingMember(member);
+    setDpLink(member.dp_link || "");
+  };
+
+  const handleUpdateDpLink = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingMember) return;
+
+    try {
+      const token = localStorage.getItem("access_token");
+      console.log(token);
+      if (!token) {
+        router.push("/login");
+        return;
+      }
+
+      const response = await fetch(getApiUrl(`api/members/update_member`), {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          member_id: editingMember.id,
+          dp_link: dpLink,
+        }),
+      });
+
+      if (response.ok) {
+        // Update the member in the members array
+        setMembers((prev) =>
+          prev.map((m) => (m.id === editingMember.id ? { ...m, dp_link: dpLink } : m))
+        );
+        setEditingMember(null);
+        setDpLink("");
+        alert("Profile picture updated successfully!");
+      } else if (response.status === 401) {
+        localStorage.removeItem("access_token");
+        router.push("/login");
+      } else {
+        const errorData = await response.json();
+        console.error("Failed to update profile picture:", response.status, response.statusText);
+        console.error("Error response:", errorData);
+        alert(`Failed to update profile picture: ${errorData.message || response.statusText}`);
+      }
+    } catch (error) {
+      console.error("Network error:", error);
+      alert("Cannot connect to server. Please check your connection and try again.");
+    }
+  };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      [name]: name === 'gym_id' ? parseInt(value) || 1 : value
+      [name]: name === "gym_id" ? parseInt(value) : value,
     }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const newMember: Member = {
-      id: membersList.length + 1,
-      ...formData,
-      created_at: new Date().toISOString(),
-    };
-    
     try {
-      console.log(localStorage.getItem("access_token"));
+      const token = localStorage.getItem("access_token");
+      if (!token) {
+        router.push("/login");
+        return;
+      }
+
       const response = await fetch(getApiUrl("api/members/add_member"), {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${localStorage.getItem("access_token")}`,
+          "Authorization": `Bearer ${token}`,
         },
-        body: JSON.stringify(newMember),
+        body: JSON.stringify({
+          name: formData.name,
+          email: formData.email,
+          phone: formData.phone,
+          address: formData.address,
+          city: formData.city,
+          state: formData.state,
+          zip: formData.zip,
+          expiration_date: formData.expiration_date || null,
+          gym_id: formData.gym_id,
+        }),
       });
-      
+
       if (response.ok) {
         const data = await response.json();
         console.log("Add member response:", data);
         if (data.success && data.member) {
           // Use the member data returned from backend
-          setMembersList(prev => [...prev, data.member]);
-        } else {
-          // Fallback to using the newMember we created
-          setMembersList(prev => [...prev, newMember]);
+          setMembers((prev) => [...prev, data.member]);
         }
         setFormData({
           name: "",
@@ -174,13 +221,35 @@ const MembersPage: React.FC = () => {
           phone: "",
           address: "",
           city: "",
-          dp_link: "",
           state: "",
           zip: "",
+          expiration_date: "",
           gym_id: 1,
         });
-        setIsModalOpen(false);
+        setIsAddModalOpen(false);
         alert("Member added successfully!");
+        // Refresh the members list
+        const refreshResponse = await fetch(getApiUrl("api/members/get_members"), {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${token}`,
+          },
+        });
+        if (refreshResponse.ok) {
+          const refreshData = await refreshResponse.json();
+          if (refreshData.success && refreshData.members) {
+            setMembers(refreshData.members);
+          } else if (Array.isArray(refreshData)) {
+            setMembers(refreshData);
+          }
+        } else if (refreshResponse.status === 401) {
+          localStorage.removeItem("access_token");
+          router.push("/login");
+        }
+      } else if (response.status === 401) {
+        localStorage.removeItem("access_token");
+        router.push("/login");
       } else {
         const errorData = await response.json();
         console.error("Failed to add member:", response.status, response.statusText);
@@ -193,170 +262,174 @@ const MembersPage: React.FC = () => {
     }
   };
 
-  return (
-    <div 
-      className="ml-0 lg:ml-64 pt-16 lg:pt-24 p-6 sm:p-8 lg:p-12 min-h-screen bg-[#ecf0f3]"
-      style={{
-        position: 'relative',
-        zIndex: 1,
-        backgroundColor: '#ecf0f3'
-      }}
-    >
-      {/* Header */}
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between mb-8 lg:mb-12 gap-6 px-2">
-        <h4 className="text-2xl lg:text-3xl font-bold text-gray-800 drop-shadow-[1px_1px_0px_#fff]">
-          Members
-        </h4>
+  if (loading) {
+    return (
+      <div className="ml-0 lg:ml-64 pt-16 lg:pt-24 flex items-center justify-center min-h-screen bg-[#ecf0f3] text-gray-500">
+        Loading members...
+      </div>
+    );
+  }
 
-        {/* New Member Button */}
+  return (
+    <div className="ml-0 lg:ml-64 pt-16 lg:pt-24 p-6 sm:p-8 lg:p-12 min-h-screen bg-[#ecf0f3]">
+      {/* Header */}
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between mb-6 mt-4 lg:mt-6 gap-6 px-2">
+        <h1 className="text-2xl lg:text-3xl font-bold text-gray-800 drop-shadow-[1px_1px_0px_#fff]">Members</h1>
         <button
-          onClick={() => setIsModalOpen(true)}
+          onClick={() => setIsAddModalOpen(true)}
           className="inline-flex items-center justify-center px-6 py-3 font-semibold text-sm rounded-full text-white bg-green-600 hover:bg-green-700 transition-all duration-200 min-w-[160px] shadow-lg hover:shadow-xl"
-          style={{
-            display: 'inline-flex',
-            visibility: 'visible',
-            opacity: 1,
-            zIndex: 10,
-            position: 'relative'
-          }}
         >
           <MdAdd size={20} className="mr-2" />
-          New Member
+          Add Member
         </button>
       </div>
 
-      {/* Table Card */}
-      <div className="rounded-3xl bg-[#ecf0f3] shadow-[8px_8px_16px_#cbced1,-8px_-8px_16px_#ffffff] overflow-hidden">
-        {/* Search + Filter */}
-        <div className="flex flex-col lg:flex-row items-center justify-between p-6 lg:p-8 gap-6">
-          {/* Search Box */}
-          <div className="relative flex items-center w-full lg:w-80 rounded-full px-5 py-3 bg-[#ecf0f3] shadow-[inset_5px_5px_10px_#cbced1,inset_-5px_-5px_10px_#ffffff]">
-            <MdSearch size={20} className="text-gray-500 mr-3" />
-            <input
-              type="text"
-              placeholder="Search member..."
-              className="w-full bg-transparent border-none focus:outline-none text-sm text-gray-700 placeholder-gray-500"
-            />
-          </div>
-
-          {/* Filter */}
-          <button className="p-4 rounded-full bg-[#ecf0f3] shadow-[5px_5px_10px_#cbced1,-5px_-5px_10px_#ffffff] hover:shadow-[inset_5px_5px_10px_#cbced1,inset_-5px_-5px_10px_#ffffff] transition-all text-gray-600 w-full lg:w-auto">
-            <MdFilterList size={22} />
-          </button>
-        </div>
-
-        {/* Table */}
-        <div className="overflow-x-auto">
-          {loading ? (
-            <div className="flex justify-center items-center py-12">
-              <div className="text-gray-500">Loading members...</div>
-            </div>
-          ) : (
-            <table className="min-w-full text-sm text-gray-700">
-              <thead className="text-gray-700 uppercase bg-[#ecf0f3] border-b border-gray-300">
-                <tr>
-                  <th className="px-4 py-4">
-                    <input
-                      type="checkbox"
-                      className="w-4 h-4 text-green-600 accent-green-600"
-                    />
-                  </th>
-                  <th></th>
-                  {tableHeaders.map((header) => (
-                    <th
-                      key={header}
-                      className="px-6 py-4 text-left font-semibold tracking-wide"
-                    >
-                      {header}
-                    </th>
-                  ))}
-                  <th></th>
-                </tr>
-              </thead>
-
-              <tbody>
-                {membersList.map((member) => (
-                <tr
-                  key={member.id}
-                  className="border-b border-gray-200 hover:bg-[#d8d8d8] transition-all"
-                >
-                  {/* Checkbox */}
-                  <td className="px-4 py-4">
-                    <input
-                      type="checkbox"
-                      className="w-4 h-4 text-green-600 accent-green-600"
-                    />
-                  </td>
-
-                  {/* Avatar */}
-                  <td className="px-4 py-4">
-                    <div className="w-10 h-10 rounded-full flex items-center justify-center bg-[#ecf0f3] shadow-[inset_3px_3px_6px_#cbced1,inset_-3px_-3px_6px_#ffffff]">
-                      <MdPerson size={22} className="text-gray-600" />
-                    </div>
-                  </td>
-                  {/* Data */}
-                  <td className="px-6 py-4">{member.name}</td>
-                  <td className="px-6 py-4">{member.email}</td>
-                  <td className="px-6 py-4">{member.phone}</td>
-                  <td className="px-6 py-4">{member.address}</td>
-                  <td className="px-6 py-4">{member.city}</td>
-                  <td className="px-6 py-4">{member.state}</td>
-                  <td className="px-6 py-4">{member.zip}</td>
-                  {/* Actions */}
-                  <td className="px-6 py-4 text-right">
-                    <button className="p-2 rounded-full bg-[#ecf0f3] shadow-[4px_4px_8px_#cbced1,-4px_-4px_8px_#ffffff] hover:shadow-[inset_4px_4px_8px_#cbced1,inset_-4px_-4px_8px_#ffffff] transition-all">
-                      <MdMoreVert size={18} className="text-gray-700" />
-                    </button>
-                  </td>
-                </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </div>
-
-        {/* Pagination */}
-        <div className="flex items-center justify-end p-8 border-t border-gray-300">
-          <p className="text-sm text-gray-600 mr-8">Rows per page: 5</p>
-          <p className="text-sm text-gray-600 mr-10">1–3 of 3</p>
-          <div className="flex space-x-3">
-            <button
-              disabled
-              className="p-3 rounded-full bg-[#ecf0f3] text-gray-400 shadow-[inset_3px_3px_6px_#cbced1,inset_-3px_-3px_6px_#ffffff]"
-            >
-              <MdKeyboardArrowLeft size={20} />
-            </button>
-            <button
-              disabled
-              className="p-3 rounded-full bg-[#ecf0f3] text-gray-400 shadow-[inset_3px_3px_6px_#cbced1,inset_-3px_-3px_6px_#ffffff]"
-            >
-              <MdKeyboardArrowRight size={20} />
-            </button>
-          </div>
-        </div>
+      {/* Filter Bar */}
+      <div className="flex gap-3 mb-8 px-2">
+        <button
+          onClick={() => setFilter("All")}
+          className={`px-6 py-2 rounded-full font-medium text-sm transition-all duration-200 ${
+            filter === "All"
+              ? "bg-green-600 text-white shadow-lg"
+              : "bg-white text-gray-700 hover:bg-gray-50 shadow-md"
+          }`}
+        >
+          All
+        </button>
+        <button
+          onClick={() => setFilter("Active")}
+          className={`px-6 py-2 rounded-full font-medium text-sm transition-all duration-200 ${
+            filter === "Active"
+              ? "bg-green-600 text-white shadow-lg"
+              : "bg-white text-gray-700 hover:bg-gray-50 shadow-md"
+          }`}
+        >
+          Active
+        </button>
+        <button
+          onClick={() => setFilter("Expired")}
+          className={`px-6 py-2 rounded-full font-medium text-sm transition-all duration-200 ${
+            filter === "Expired"
+              ? "bg-green-600 text-white shadow-lg"
+              : "bg-white text-gray-700 hover:bg-gray-50 shadow-md"
+          }`}
+        >
+          Expired
+        </button>
       </div>
+
+      {!Array.isArray(members) || members.length === 0 ? (
+        <p className="text-gray-500">No members found.</p>
+      ) : filteredMembers.length === 0 ? (
+        <p className="text-gray-500">No {filter.toLowerCase()} members found.</p>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+          {filteredMembers.map((member) => (
+            <MemberCard
+              key={member.id}
+              member={member}
+              onClick={() => setSelectedMember(member)}
+              onEditDp={handleEditDp}
+            />
+          ))}
+        </div>
+      )}
+
+      {selectedMember && (
+        <MemberModal
+          member={selectedMember}
+          onClose={() => setSelectedMember(null)}
+        />
+      )}
+
+      {/* Edit DP Link Modal */}
+      <Modal
+        isOpen={editingMember !== null}
+        onClose={() => {
+          setEditingMember(null);
+          setDpLink("");
+        }}
+        title="Edit Profile Picture"
+      >
+        <form onSubmit={handleUpdateDpLink} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Profile Picture URL
+            </label>
+            <input
+              type="url"
+              value={dpLink}
+              onChange={(e) => setDpLink(e.target.value)}
+              placeholder="https://example.com/image.jpg"
+              className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-green-500 focus:border-transparent"
+            />
+            <p className="mt-2 text-xs text-gray-500">
+              Enter the URL of the profile picture
+            </p>
+          </div>
+
+          {dpLink && (
+            <div className="mt-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Preview
+              </label>
+              <div className="w-32 h-32 rounded-full overflow-hidden border-2 border-gray-300 mx-auto">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={dpLink}
+                  alt="Preview"
+                  className="w-full h-full object-cover"
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).src = "https://cdn-icons-png.flaticon.com/512/149/149071.png";
+                  }}
+                />
+              </div>
+            </div>
+          )}
+
+          <div className="flex justify-end space-x-4 pt-4">
+            <button
+              type="button"
+              onClick={() => {
+                setEditingMember(null);
+                setDpLink("");
+              }}
+              className="px-6 py-2 text-gray-600 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+            >
+              Update
+            </button>
+          </div>
+        </form>
+      </Modal>
 
       {/* Add Member Modal */}
       <Modal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
+        isOpen={isAddModalOpen}
+        onClose={() => setIsAddModalOpen(false)}
         title="Add New Member"
       >
         <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Name
+            </label>
+            <input
+              type="text"
+              name="name"
+              value={formData.name}
+              onChange={handleInputChange}
+              required
+              className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-green-500 focus:border-transparent"
+            />
+          </div>
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Full Name
-              </label>
-              <input
-                type="text"
-                name="name"
-                value={formData.name}
-                onChange={handleInputChange}
-                required
-                className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-green-500 focus:border-transparent"
-              />
-            </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Email
@@ -370,9 +443,6 @@ const MembersPage: React.FC = () => {
                 className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-green-500 focus:border-transparent"
               />
             </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Phone
@@ -381,19 +451,6 @@ const MembersPage: React.FC = () => {
                 type="tel"
                 name="phone"
                 value={formData.phone}
-                onChange={handleInputChange}
-                required
-                className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-green-500 focus:border-transparent"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Gym ID
-              </label>
-              <input
-                type="number"
-                name="gym_id"
-                value={formData.gym_id}
                 onChange={handleInputChange}
                 required
                 className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-green-500 focus:border-transparent"
@@ -411,21 +468,6 @@ const MembersPage: React.FC = () => {
               value={formData.address}
               onChange={handleInputChange}
               required
-              className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-green-500 focus:border-transparent"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Profile Picture URL
-            </label>
-            <input
-              type="url"
-              name="dp_link"
-              value={formData.dp_link}
-              onChange={handleInputChange}
-              required
-              placeholder="https://example.com/profile.jpg"
               className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-green-500 focus:border-transparent"
             />
           </div>
@@ -459,7 +501,7 @@ const MembersPage: React.FC = () => {
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                ZIP Code
+                ZIP
               </label>
               <input
                 type="text"
@@ -471,11 +513,47 @@ const MembersPage: React.FC = () => {
               />
             </div>
           </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Expiration Date
+            </label>
+            <input
+              type="date"
+              name="expiration_date"
+              value={formData.expiration_date}
+              onChange={handleInputChange}
+              min={new Date().toISOString().split('T')[0]}
+              required
+              className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-green-500 focus:border-transparent cursor-pointer"
+              onClick={(e) => {
+                // Ensure the calendar opens on click
+                (e.target as HTMLInputElement).showPicker?.();
+              }}
+            />
+            <p className="mt-2 text-xs text-gray-500">
+              Select the membership expiration date
+            </p>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Gym ID
+            </label>
+            <input
+              type="number"
+              name="gym_id"
+              value={formData.gym_id}
+              onChange={handleInputChange}
+              required
+              min="1"
+              className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-green-500 focus:border-transparent"
+            />
+          </div>
 
           <div className="flex justify-end space-x-4 pt-4">
             <button
               type="button"
-              onClick={() => setIsModalOpen(false)}
+              onClick={() => setIsAddModalOpen(false)}
               className="px-6 py-2 text-gray-600 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors"
             >
               Cancel
@@ -491,6 +569,4 @@ const MembersPage: React.FC = () => {
       </Modal>
     </div>
   );
-};
-
-export default MembersPage;
+}

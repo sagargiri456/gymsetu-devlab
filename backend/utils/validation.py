@@ -147,7 +147,7 @@ def validate_gym_registration(data):
 
 
 def validate_member_data(data):
-    """Validate member data"""
+    """Validate member data (for creating new members - all fields required)"""
     required_fields = ["name", "email", "phone", "address", "city", "state", "zip"]
     validate_required_fields(data, required_fields)
 
@@ -165,6 +165,36 @@ def validate_member_data(data):
     validate_string_length(data["city"], "City", 2, 50)
     validate_string_length(data["state"], "State", 2, 50)
     validate_string_length(data["zip"], "ZIP code", 5, 10)
+
+
+def validate_member_update_data(data):
+    """Validate member update data (for partial updates - only validate fields that are provided)"""
+    # Only validate fields that are present in the data
+    if "email" in data:
+        if not validate_email(data["email"]):
+            raise ValidationError("Invalid email format")
+
+    if "phone" in data:
+        if not validate_phone(data["phone"]):
+            raise ValidationError("Invalid phone number format")
+
+    if "name" in data:
+        validate_string_length(data["name"], "Name", 2, 100)
+
+    if "address" in data:
+        validate_string_length(data["address"], "Address", 5, 200)
+
+    if "city" in data:
+        validate_string_length(data["city"], "City", 2, 50)
+
+    if "state" in data:
+        validate_string_length(data["state"], "State", 2, 50)
+
+    if "zip" in data:
+        validate_string_length(data["zip"], "ZIP code", 5, 10)
+
+    if "expiration_date" in data:
+        validate_date_format(data["expiration_date"], "Expiration date")
 
 
 def validate_subscription_plan_data(data):

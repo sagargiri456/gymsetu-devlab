@@ -106,7 +106,7 @@ const DashboardPage: React.FC = () => {
     <div className="ml-0 lg:ml-64 pt-16 lg:pt-24 p-4 sm:p-6 lg:p-10 min-h-screen bg-[#ecf0f3]">
       
       {/* Welcome Header */}
-      <div className="mb-8">
+      <div className="mb-8 mt-4 lg:mt-6">
         <h4 className="text-3xl font-bold text-gray-800 drop-shadow-[1px_1px_0px_#fff]">
           Hi, Welcome back, Admin
         </h4>

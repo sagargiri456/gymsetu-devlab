@@ -2,7 +2,7 @@ import time
 import logging
 from functools import wraps
 from flask import request, jsonify, g
-from utils.validation import validate_json_request
+from utils.validation import validate_json_request, ValidationError
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -14,13 +14,28 @@ def request_logging_middleware(app):
     @app.before_request
     def log_request_info():
         g.start_time = time.time()
+        auth_header = request.headers.get("Authorization")
+        auth_status = "Present" if auth_header else "Missing"
+        # Log first 20 chars of auth header to help debug format issues (without exposing full token)
+        auth_preview = (
+            (
+                auth_header[:20] + "..."
+                if auth_header and len(auth_header) > 20
+                else auth_header
+            )
+            if auth_header
+            else "None"
+        )
         logger.info(
-            f"Request: {request.method} {request.path} from {request.remote_addr}"
+            f"Request: {request.method} {request.path} from {request.remote_addr} "
+            f"[Authorization: {auth_status}, Preview: {auth_preview}]"
         )
 
-        if request.is_json:
+        # Only attempt to parse JSON for methods that typically have request bodies
+        # and when Content-Length > 0 (meaning there's actually content)
+        if request.method in ["POST", "PUT", "PATCH", "DELETE"] and request.is_json:
             try:
-                request_data = request.get_json()
+                request_data = request.get_json(silent=True)
                 if request_data:
                     logger.info(f"Request data: {request_data}")
             except Exception as e:
@@ -81,12 +96,15 @@ def validate_request_data(validation_func=None):
 
 
 def handle_database_errors(f):
-    """Decorator to handle database errors"""
+    """Decorator to handle database errors - allows ValidationErrors to propagate"""
 
     @wraps(f)
     def wrapper(*args, **kwargs):
         try:
             return f(*args, **kwargs)
+        except ValidationError as ve:
+            # Let ValidationError propagate to the error handler (returns 400)
+            raise
         except Exception as e:
             logger.error(f"Database error in {f.__name__}: {str(e)}")
 

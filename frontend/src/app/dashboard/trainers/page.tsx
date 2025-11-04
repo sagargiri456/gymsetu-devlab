@@ -1,495 +1,97 @@
 "use client";
-import React, { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
-import {
-  MdAdd,
-  MdSearch,
-  MdFilterList,
-  MdKeyboardArrowLeft,
-  MdKeyboardArrowRight,
-  MdMoreVert,
-  MdOutlineSportsGymnastics,
-} from "react-icons/md";
-import Modal from "../../components/Modal";
+import React, { useEffect, useState } from "react";
+import TrainerCard from "./TrainerCard";
+import TrainerModal from "./TrainerModal";
+import TrainerDetailsModal from "./TrainerDetailsModal";
+import { Trainer } from "./TrainerTypes";
+import { MdAdd } from "react-icons/md";
 import { getApiUrl } from "@/lib/api";
-
-// --- Neomorphic Status Badge ---
-const StatusBadge: React.FC<{ status: "Active" | "Inactive" }> = ({ status }) => {
-  const isActive = status === "Active";
-  return (
-    <span
-      className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${
-        isActive ? "text-green-700" : "text-red-700"
-      } bg-[#ecf0f3] shadow-[inset_2px_2px_4px_#cbced1,inset_-2px_-2px_4px_#ffffff]`}
-    >
-      {status}
-    </span>
-  );
-};
-
-// --- Trainer Interface based on backend model ---
-interface Trainer {
-  id: number;
-  name: string;
-  email: string;
-  phone: string;
-  address: string;
-  city: string;
-  dp_link: string;
-  state: string;
-  zip: string;
-  created_at: string;
-  gym_id: number;
-}
-
-// Sample data will be replaced by API fetch
+import { useRouter } from "next/navigation";
 
 const TrainersPage: React.FC = () => {
   const router = useRouter();
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [trainersList, setTrainersList] = useState<Trainer[]>([]);
+  const [trainers, setTrainers] = useState<Trainer[]>([]);
   const [loading, setLoading] = useState(true);
-  const [formData, setFormData] = useState({
-    name: "",
-    email: "",
-    phone: "",
-    address: "",
-    city: "",
-    dp_link: "",
-    state: "",
-    zip: "",
-    gym_id: 1,
-  });
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [selectedTrainer, setSelectedTrainer] = useState<Trainer | null>(null);
 
-  const headers = [
-    "Name",
-    "Email",
-    "Phone",
-    "Address",
-    "City",
-    "State",
-    "Zip",
-    "Gym ID",
-  ];
-
-  // Fetch trainers data from backend
-  useEffect(() => {
-    const fetchTrainers = async () => {
-      try {
-        const token = localStorage.getItem("access_token");
-        const apiUrl = getApiUrl("api/trainers/get_all_trainers");
-        console.log("Fetching trainers from:", apiUrl);
-        console.log("Authorization token:", token ? "Present" : "Missing");
-        
-        if (!token) {
-          console.error("No access token found. Please login again.");
-          setTrainersList([]);
-          setLoading(false);
-          return;
-        }
-        
-        const response = await fetch(apiUrl, {
-          method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${token}`,
-          },
-        });
-        
-        console.log("Response status:", response.status);
-        
-        if (response.ok) {
-          const data = await response.json();
-          if (data.success && data.trainers) {
-            setTrainersList(data.trainers);
-          } else {
-            console.log("No trainers data found in response");
-            setTrainersList([]);
-          }
-        } else {
-          const errorText = await response.text();
-          console.error("Failed to fetch trainers:", response.status, response.statusText);
-          console.error("Error response:", errorText);
-          
-          // Check if it's an auth error
-          if (response.status === 401) {
-            try {
-              const parsed = JSON.parse(errorText);
-              if (parsed?.msg?.toLowerCase().includes("subject must be a string") || parsed?.msg || parsed?.message) {
-                localStorage.removeItem("access_token");
-                router.push("/login");
-                return;
-              }
-            } catch (_) {}
-            localStorage.removeItem("access_token");
-            router.push("/login");
-            return;
-          }
-          
-          // If it's a 400 or 404 error, the API might not exist yet
-          if (response.status === 400 || response.status === 404) {
-            console.log("API endpoint might not exist yet. Using empty array as fallback.");
-            setTrainersList([]);
-          }
-        }
-      } catch (error) {
-        console.error("Network error:", error);
-      } finally {
-        setLoading(false);
+  const fetchTrainers = async () => {
+    try {
+      const token = localStorage.getItem("access_token");
+      if (!token) {
+        router.push("/login");
+        return;
       }
-    };
 
-    fetchTrainers();
-  }, []);
-
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: name === 'gym_id' ? parseInt(value) || 1 : value
-    }));
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const newTrainer: Trainer = {
-      id: trainersList.length + 1,
-      ...formData,
-      created_at: new Date().toISOString(),
-    };
-    try{
-      const response = await fetch(getApiUrl("api/trainers/add_trainer"), {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${localStorage.getItem("access_token")}`,
-        },
-        body: JSON.stringify({
-          name: formData.name,
-          email: formData.email,
-          phone: formData.phone,
-          address: formData.address,
-          city: formData.city,
-          dp_link: formData.dp_link,
-          state: formData.state,
-          zip: formData.zip,
-          gym_id: formData.gym_id,
-        }),
+      const res = await fetch(getApiUrl("api/trainers/get_all_trainers"), {
+        headers: { Authorization: `Bearer ${token}` },
       });
-      
-        if (response.ok) {
-          const data = await response.json();
-          console.log("Add trainer response:", data);
-          if (data.success && data.trainer) {
-            // Use the trainer data returned from backend
-            setTrainersList(prev => [...prev, data.trainer]);
-          } else {
-            // Fallback to using the newTrainer we created
-            setTrainersList(prev => [...prev, newTrainer]);
-          }
-          setFormData({
-            name: "",
-            email: "",
-            phone: "",
-            address: "",
-            city: "",
-            dp_link: "",
-            state: "",
-            zip: "",
-            gym_id: 1,
-          });
-          setIsModalOpen(false);
-          alert("Trainer added successfully!");
-        } else {
-          const errorData = await response.json();
-          console.error("Failed to add trainer:", response.status, response.statusText);
-          console.error("Error response:", errorData);
-          alert(`Failed to add trainer: ${errorData.message || response.statusText}`);
-        }
-    } catch (error) {
-      console.error("Network error:", error);
-      alert("Cannot connect to server. Please check your connection and try again.");
+
+      if (res.ok) {
+        const data = await res.json();
+        setTrainers(data.trainers || []);
+      } else if (res.status === 401) {
+        localStorage.removeItem("access_token");
+        router.push("/login");
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
     }
   };
 
+  useEffect(() => {
+    fetchTrainers();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   return (
-    <div className="ml-0 lg:ml-64 pt-16 lg:pt-24 p-6 sm:p-8 lg:p-12 min-h-screen bg-[#ecf0f3]">
-      {/* Header */}
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between mb-8 lg:mb-12 gap-6 px-2">
-        <h4 className="text-2xl lg:text-3xl font-bold text-gray-800 drop-shadow-[1px_1px_0px_#fff]">
+    <div className="ml-0 lg:ml-64 pt-16 lg:pt-24 p-6 min-h-screen bg-[#ecf0f3]">
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between mb-8 gap-6 px-2">
+        <h4 className="text-2xl lg:text-3xl font-bold text-gray-800">
           Trainers
         </h4>
 
         <button
-          onClick={() => setIsModalOpen(true)}
-          className="inline-flex items-center justify-center px-6 py-3 font-semibold text-sm rounded-full text-white bg-green-600 hover:bg-green-700 transition-all duration-200 min-w-[160px] shadow-lg hover:shadow-xl"
+          onClick={() => setIsAddModalOpen(true)}
+          className="inline-flex items-center justify-center px-6 py-3 font-semibold text-sm rounded-full text-white bg-green-600 hover:bg-green-700 transition-all duration-200 shadow-lg hover:shadow-xl"
         >
           <MdAdd size={20} className="mr-2" />
           New Trainer
         </button>
       </div>
 
-      {/* Card */}
-      <div className="rounded-3xl bg-[#ecf0f3] shadow-[8px_8px_16px_#cbced1,-8px_-8px_16px_#ffffff] overflow-hidden">
-        {/* Search and Filter */}
-        <div className="flex flex-col lg:flex-row items-center justify-between p-6 lg:p-8 gap-6">
-          <div className="relative flex items-center w-full lg:w-80 rounded-full px-5 py-3 bg-[#ecf0f3] shadow-[inset_5px_5px_10px_#cbced1,inset_-5px_-5px_10px_#ffffff]">
-            <MdSearch size={20} className="text-gray-500 mr-3" />
-            <input
-              type="text"
-              placeholder="Search trainer..."
-              className="w-full bg-transparent border-none focus:outline-none text-sm text-gray-700 placeholder-gray-500"
-            />
-          </div>
-
-          <button className="p-4 rounded-full bg-[#ecf0f3] shadow-[5px_5px_10px_#cbced1,-5px_-5px_10px_#ffffff] hover:shadow-[inset_5px_5px_10px_#cbced1,inset_-5px_-5px_10px_#ffffff] transition-all text-gray-600 w-full lg:w-auto">
-            <MdFilterList size={22} />
-          </button>
+      {loading ? (
+        <div className="flex justify-center items-center py-12 text-gray-500">
+          Loading trainers...
         </div>
-
-        {/* Table */}
-        <div className="overflow-x-auto">
-          {loading ? (
-            <div className="flex justify-center items-center py-12">
-              <div className="text-gray-500">Loading trainers...</div>
-            </div>
-          ) : (
-            <table className="min-w-full text-sm text-gray-700">
-              <thead className="text-gray-700 uppercase bg-[#ecf0f3] border-b border-gray-300">
-                <tr>
-                  <th className="px-4 py-4">
-                    <input
-                      type="checkbox"
-                      className="w-4 h-4 text-green-600 accent-green-600"
-                    />
-                  </th>
-                  <th></th>
-                  {headers.map((h) => (
-                    <th
-                      key={h}
-                      className="px-6 py-4 text-left font-semibold tracking-wide"
-                    >
-                      {h}
-                    </th>
-                  ))}
-                  <th></th>
-                </tr>
-              </thead>
-              <tbody>
-                {trainersList.map((trainer) => (
-                <tr
-                  key={trainer.id}
-                  className="border-b border-gray-200 hover:bg-[#d8d8d8] transition-all"
-                >
-                  <td className="px-4 py-4">
-                    <input
-                      type="checkbox"
-                      className="w-4 h-4 text-green-600 accent-green-600"
-                    />
-                  </td>
-
-                  <td className="px-4 py-4">
-                    <div className="w-10 h-10 rounded-full flex items-center justify-center bg-[#ecf0f3] shadow-[inset_3px_3px_6px_#cbced1,inset_-3px_-3px_6px_#ffffff]">
-                      <MdOutlineSportsGymnastics
-                        size={22}
-                        className="text-gray-600"
-                      />
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">{trainer.name}</td>
-                  <td className="px-6 py-4 whitespace-nowrap">{trainer.email}</td>
-                  <td className="px-6 py-4 whitespace-nowrap">{trainer.phone}</td>
-                  <td className="px-6 py-4 whitespace-nowrap">{trainer.address}</td>
-                  <td className="px-6 py-4 whitespace-nowrap">{trainer.city}</td>
-                  <td className="px-6 py-4 whitespace-nowrap">{trainer.state}</td>
-                  <td className="px-6 py-4 whitespace-nowrap">{trainer.zip}</td>
-                  <td className="px-6 py-4 whitespace-nowrap">{trainer.gym_id}</td>
-                  <td className="px-6 py-4 text-right whitespace-nowrap">
-                    <button className="p-2 rounded-full bg-[#ecf0f3] shadow-[4px_4px_8px_#cbced1,-4px_-4px_8px_#ffffff] hover:shadow-[inset_4px_4px_8px_#cbced1,inset_-4px_-4px_8px_#ffffff] transition-all">
-                      <MdMoreVert size={18} className="text-gray-700" />
-                    </button>
-                  </td>
-                </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
+      ) : trainers.length === 0 ? (
+        <div className="text-center text-gray-500 py-12">
+          No trainers found.
         </div>
-
-        {/* Pagination */}
-        <div className="flex items-center justify-end p-6 border-t border-gray-300">
-          <p className="text-sm text-gray-600 mr-6">Rows per page: 5</p>
-          <p className="text-sm text-gray-600 mr-8">1–5 of 5</p>
-          <div className="flex space-x-2">
-            <button
-              disabled
-              className="p-2 rounded-full bg-[#ecf0f3] text-gray-700 shadow-[4px_4px_8px_#cbced1,-4px_-4px_8px_#ffffff] disabled:text-gray-400 disabled:shadow-[inset_3px_3px_6px_#cbced1,inset_-3px_-3px_6px_#ffffff] hover:shadow-[inset_4px_4px_8px_#cbced1,inset_-4px_-4px_8px_#ffffff] transition-all"
-            >
-              <MdKeyboardArrowLeft size={20} />
-            </button>
-            <button
-              disabled
-              className="p-2 rounded-full bg-[#ecf0f3] text-gray-700 shadow-[4px_4px_8px_#cbced1,-4px_-4px_8px_#ffffff] disabled:text-gray-400 disabled:shadow-[inset_3px_3px_6px_#cbced1,inset_-3px_-3px_6px_#ffffff] hover:shadow-[inset_4px_4px_8px_#cbced1,inset_-4px_-4px_8px_#ffffff] transition-all"
-            >
-              <MdKeyboardArrowRight size={20} />
-            </button>
-          </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          {trainers.map((trainer) => (
+            <TrainerCard
+              key={trainer.id}
+              trainer={trainer}
+              onClick={() => setSelectedTrainer(trainer)}
+            />
+          ))}
         </div>
-      </div>
+      )}
 
-      {/* Add Trainer Modal */}
-      <Modal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        title="Add New Trainer"
-      >
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Name
-            </label>
-            <input
-              type="text"
-              name="name"
-              value={formData.name}
-              onChange={handleInputChange}
-              required
-              className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-green-500 focus:border-transparent"
-            />
-          </div>
+      <TrainerModal
+        isOpen={isAddModalOpen}
+        onClose={() => setIsAddModalOpen(false)}
+        onTrainerAdded={fetchTrainers}
+      />
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Email
-              </label>
-              <input
-                type="email"
-                name="email"
-                value={formData.email}
-                onChange={handleInputChange}
-                required
-                className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-green-500 focus:border-transparent"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Phone
-              </label>
-              <input
-                type="tel"
-                name="phone"
-                value={formData.phone}
-                onChange={handleInputChange}
-                required
-                className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-green-500 focus:border-transparent"
-              />
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Address
-            </label>
-            <input
-              type="text"
-              name="address"
-              value={formData.address}
-              onChange={handleInputChange}
-              required
-              className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-green-500 focus:border-transparent"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Profile Picture URL
-            </label>
-            <input
-              type="url"
-              name="dp_link"
-              value={formData.dp_link}
-              onChange={handleInputChange}
-              required
-              placeholder="https://example.com/profile.jpg"
-              className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-green-500 focus:border-transparent"
-            />
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                City
-              </label>
-              <input
-                type="text"
-                name="city"
-                value={formData.city}
-                onChange={handleInputChange}
-                required
-                className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-green-500 focus:border-transparent"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                State
-              </label>
-              <input
-                type="text"
-                name="state"
-                value={formData.state}
-                onChange={handleInputChange}
-                required
-                className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-green-500 focus:border-transparent"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Zip Code
-              </label>
-              <input
-                type="text"
-                name="zip"
-                value={formData.zip}
-                onChange={handleInputChange}
-                required
-                className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-green-500 focus:border-transparent"
-              />
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Gym ID
-            </label>
-            <input
-              type="number"
-              name="gym_id"
-              value={formData.gym_id}
-              onChange={handleInputChange}
-              required
-              min="1"
-              className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-green-500 focus:border-transparent"
-            />
-          </div>
-
-          <div className="flex justify-end space-x-4 pt-4">
-            <button
-              type="button"
-              onClick={() => setIsModalOpen(false)}
-              className="px-6 py-2 text-gray-600 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
-            >
-              Add Trainer
-            </button>
-          </div>
-        </form>
-      </Modal>
+      <TrainerDetailsModal
+        trainer={selectedTrainer}
+        onClose={() => setSelectedTrainer(null)}
+      />
     </div>
   );
 };

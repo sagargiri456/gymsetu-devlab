@@ -144,7 +144,9 @@ const ContestsPage: React.FC = () => {
                 router.push("/login");
                 return;
               }
-            } catch (_) {}
+            } catch {
+              // Ignore parsing errors
+            }
             localStorage.removeItem("access_token");
             router.push("/login");
             return;
@@ -249,7 +251,7 @@ const ContestsPage: React.FC = () => {
   return (
     <div className="ml-0 lg:ml-64 pt-16 lg:pt-24 p-6 sm:p-8 lg:p-12 min-h-screen bg-[#ecf0f3] flex flex-col items-center py-8 sm:py-12 px-4 sm:px-6 lg:px-10">
       {/* Header */}
-      <div className="w-full max-w-5xl flex flex-col lg:flex-row justify-between items-center mb-8 lg:mb-12 gap-6">
+      <div className="w-full max-w-5xl flex flex-col lg:flex-row justify-between items-center mb-8 lg:mb-12 mt-4 lg:mt-6 gap-6">
         <h1 className="text-2xl lg:text-3xl font-bold text-gray-700 tracking-tight">
           Contests
         </h1>

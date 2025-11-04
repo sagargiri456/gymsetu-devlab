@@ -49,6 +49,295 @@ def register():
     return jsonify({"success": True, "message": "Gym registered successfully"}), 201
 
 
+@auth_bp.route("/get_gyms", methods=["GET"])
+def get_gyms():
+    """Get list of all gyms for dropdown selection (public endpoint)"""
+    from models.gym import Gym
+
+    gyms = Gym.query.all()
+    gyms_list = [
+        {
+            "id": gym.id,
+            "name": gym.name,
+            "email": gym.email,
+            "city": gym.city,
+            "state": gym.state,
+        }
+        for gym in gyms
+    ]
+    return jsonify({"success": True, "gyms": gyms_list}), 200
+
+
+@auth_bp.route("/trainer/check", methods=["POST"])
+@validate_json_request
+@handle_database_errors
+def trainer_check():
+    """Step 1: Check if trainer exists and if password is set"""
+    from models.trainers import Trainer
+    from models.gym import Gym
+
+    data = request.get_json()
+
+    # Validate required fields
+    if not data.get("gym_id"):
+        return jsonify({"error": "Gym ID is required"}), 400
+    if not data.get("email"):
+        return jsonify({"error": "Email is required"}), 400
+
+    gym_id = data["gym_id"]
+    email = data["email"]
+
+    # Verify gym exists
+    gym = Gym.query.get(gym_id)
+    if not gym:
+        return jsonify({"error": "Gym not found"}), 404
+
+    # Find trainer in this gym
+    trainer = Trainer.query.filter_by(email=email, gym_id=gym_id).first()
+    if not trainer:
+        return jsonify({"error": "Trainer not found in this gym"}), 404
+
+    if not trainer.is_active:
+        return jsonify({"error": "Trainer account is inactive"}), 403
+
+    # Check if password exists
+    if trainer.password:
+        # Password exists - user needs to enter password
+        return (
+            jsonify(
+                {
+                    "requires_password": True,
+                    "message": "Enter your password",
+                    "trainer_id": trainer.id,
+                    "gym_id": gym_id,
+                }
+            ),
+            200,
+        )
+    else:
+        # No password - user needs to setup password
+        return (
+            jsonify(
+                {
+                    "requires_password": False,
+                    "first_time": True,
+                    "message": "Setup your password",
+                    "trainer_id": trainer.id,
+                    "gym_id": gym_id,
+                }
+            ),
+            200,
+        )
+
+
+@auth_bp.route("/trainer/login", methods=["POST"])
+@validate_json_request
+@handle_database_errors
+def trainer_login():
+    """Step 2: Verify password (if exists) or setup password (if first time) and login"""
+    from models.trainers import Trainer
+    from models.gym import Gym
+    from database import db
+    import logging
+
+    logger = logging.getLogger(__name__)
+    data = request.get_json()
+
+    # Validate required fields
+    if not data.get("gym_id"):
+        return jsonify({"error": "Gym ID is required"}), 400
+    if not data.get("email"):
+        return jsonify({"error": "Email is required"}), 400
+    if not data.get("password"):
+        return jsonify({"error": "Password is required"}), 400
+
+    gym_id = data["gym_id"]
+    email = data["email"]
+    password = data["password"]
+
+    # Verify gym exists
+    gym = Gym.query.get(gym_id)
+    if not gym:
+        return jsonify({"error": "Gym not found"}), 404
+
+    # Find trainer in this gym
+    trainer = Trainer.query.filter_by(email=email, gym_id=gym_id).first()
+    if not trainer:
+        return jsonify({"error": "Trainer not found in this gym"}), 404
+
+    if not trainer.is_active:
+        return jsonify({"error": "Trainer account is inactive"}), 403
+
+    # Check if password exists
+    if trainer.password:
+        # Password exists - verify it
+        if not trainer.check_password(password):
+            return jsonify({"error": "Invalid password"}), 401
+    else:
+        # No password - setup password for first time
+        trainer.set_password(password)
+        db.session.commit()
+        logger.info(f"Password set for trainer {trainer.id}")
+
+    # Generate JWT token with trainer info
+    # Token format: "trainer:trainer_id:gym_id"
+    token_identity = f"trainer:{trainer.id}:{gym_id}"
+    access_token = create_access_token(identity=token_identity)
+
+    logger.info(f"Trainer {trainer.id} logged in successfully")
+    return (
+        jsonify(
+            {
+                "message": "Logged in successfully",
+                "access_token": access_token,
+                "user": {
+                    "id": trainer.id,
+                    "name": trainer.name,
+                    "email": trainer.email,
+                    "role": "trainer",
+                    "gym_id": gym_id,
+                },
+            }
+        ),
+        200,
+    )
+
+
+@auth_bp.route("/member/check", methods=["POST"])
+@validate_json_request
+@handle_database_errors
+def member_check():
+    """Step 1: Check if member exists and if password is set"""
+    from models.members import Member
+    from models.gym import Gym
+
+    data = request.get_json()
+
+    # Validate required fields
+    if not data.get("gym_id"):
+        return jsonify({"error": "Gym ID is required"}), 400
+    if not data.get("email"):
+        return jsonify({"error": "Email is required"}), 400
+
+    gym_id = data["gym_id"]
+    email = data["email"]
+
+    # Verify gym exists
+    gym = Gym.query.get(gym_id)
+    if not gym:
+        return jsonify({"error": "Gym not found"}), 404
+
+    # Find member in this gym
+    member = Member.query.filter_by(email=email, gym_id=gym_id).first()
+    if not member:
+        return jsonify({"error": "Member not found in this gym"}), 404
+
+    if not member.is_active:
+        return jsonify({"error": "Member account is inactive"}), 403
+
+    # Check if password exists
+    if member.password:
+        # Password exists - user needs to enter password
+        return (
+            jsonify(
+                {
+                    "requires_password": True,
+                    "message": "Enter your password",
+                    "member_id": member.id,
+                    "gym_id": gym_id,
+                }
+            ),
+            200,
+        )
+    else:
+        # No password - user needs to setup password
+        return (
+            jsonify(
+                {
+                    "requires_password": False,
+                    "first_time": True,
+                    "message": "Setup your password",
+                    "member_id": member.id,
+                    "gym_id": gym_id,
+                }
+            ),
+            200,
+        )
+
+
+@auth_bp.route("/member/login", methods=["POST"])
+@validate_json_request
+@handle_database_errors
+def member_login():
+    """Step 2: Verify password (if exists) or setup password (if first time) and login"""
+    from models.members import Member
+    from models.gym import Gym
+    from database import db
+    import logging
+
+    logger = logging.getLogger(__name__)
+    data = request.get_json()
+
+    # Validate required fields
+    if not data.get("gym_id"):
+        return jsonify({"error": "Gym ID is required"}), 400
+    if not data.get("email"):
+        return jsonify({"error": "Email is required"}), 400
+    if not data.get("password"):
+        return jsonify({"error": "Password is required"}), 400
+
+    gym_id = data["gym_id"]
+    email = data["email"]
+    password = data["password"]
+
+    # Verify gym exists
+    gym = Gym.query.get(gym_id)
+    if not gym:
+        return jsonify({"error": "Gym not found"}), 404
+
+    # Find member in this gym
+    member = Member.query.filter_by(email=email, gym_id=gym_id).first()
+    if not member:
+        return jsonify({"error": "Member not found in this gym"}), 404
+
+    if not member.is_active:
+        return jsonify({"error": "Member account is inactive"}), 403
+
+    # Check if password exists
+    if member.password:
+        # Password exists - verify it
+        if not member.check_password(password):
+            return jsonify({"error": "Invalid password"}), 401
+    else:
+        # No password - setup password for first time
+        member.set_password(password)
+        db.session.commit()
+        logger.info(f"Password set for member {member.id}")
+
+    # Generate JWT token with member info
+    # Token format: "member:member_id:gym_id"
+    token_identity = f"member:{member.id}:{gym_id}"
+    access_token = create_access_token(identity=token_identity)
+
+    logger.info(f"Member {member.id} logged in successfully")
+    return (
+        jsonify(
+            {
+                "message": "Logged in successfully",
+                "access_token": access_token,
+                "user": {
+                    "id": member.id,
+                    "name": member.name,
+                    "email": member.email,
+                    "role": "member",
+                    "gym_id": gym_id,
+                },
+            }
+        ),
+        200,
+    )
+
+
 @auth_bp.route("/login", methods=["POST"])
 @validate_json_request
 def login():

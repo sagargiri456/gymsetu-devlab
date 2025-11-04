@@ -3,7 +3,6 @@ from werkzeug.exceptions import HTTPException
 from sqlalchemy.exc import SQLAlchemyError, IntegrityError
 import os
 from utils.validation import ValidationError
-from utils.validation import ValidationError
 from flask_jwt_extended.exceptions import JWTExtendedException
 from jwt.exceptions import DecodeError, InvalidTokenError
 import logging
@@ -235,19 +234,31 @@ def register_error_handlers(app):
     @app.errorhandler(JWTExtendedException)
     def handle_jwt_extended_error(error):
         """Handle JWT Extended errors"""
-        logger.warning(f"JWT error: {str(error)}")
+        auth_header = request.headers.get("Authorization", "Not provided")
+        logger.warning(
+            f"JWT error on {request.method} {request.path}: {str(error)}. "
+            f"Authorization header: {'Present' if auth_header != 'Not provided' else 'Missing'}"
+        )
         return jsonify({"msg": str(error)}), 401
 
     @app.errorhandler(DecodeError)
     def handle_decode_error(error):
         """Handle JWT decode errors"""
-        logger.warning(f"JWT decode error: {str(error)}")
+        auth_header = request.headers.get("Authorization", "Not provided")
+        logger.warning(
+            f"JWT decode error on {request.method} {request.path}: {str(error)}. "
+            f"Authorization header: {'Present' if auth_header != 'Not provided' else 'Missing'}"
+        )
         return jsonify({"msg": str(error)}), 401
 
     @app.errorhandler(InvalidTokenError)
     def handle_invalid_token_error(error):
         """Handle invalid token errors"""
-        logger.warning(f"Invalid token error: {str(error)}")
+        auth_header = request.headers.get("Authorization", "Not provided")
+        logger.warning(
+            f"Invalid token error on {request.method} {request.path}: {str(error)}. "
+            f"Authorization header: {'Present' if auth_header != 'Not provided' else 'Missing'}"
+        )
         return jsonify({"msg": str(error)}), 401
 
 

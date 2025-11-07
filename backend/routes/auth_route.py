@@ -689,6 +689,13 @@ def get_gym_by_id():
     from models.gym import Gym
 
     id = request.args.get("id")
+    # Convert id to int if it's a string
+    if id and isinstance(id, str):
+        try:
+            id = int(id)
+        except ValueError:
+            return jsonify({"message": "Invalid id format"}), 400
+
     gym = Gym.query.filter_by(id=id).first()
     if gym:
         return (

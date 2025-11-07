@@ -153,11 +153,19 @@ const ProfilePage: React.FC = () => {
     ...memberData,
     name: formData.name,
     email: formData.email,
+    subscription: memberData.subscription || {
+      status: 'Expired',
+      daysRemaining: 0,
+      plan: 'None',
+      startDate: new Date().toISOString().split('T')[0],
+      endDate: new Date().toISOString().split('T')[0]
+    },
     stats: {
-      ...memberData.stats,
+      ...(memberData.stats || {}),
       weight: formData.weight,
       height: formData.height,
-      bmi: bmi
+      bmi: bmi,
+      joinDate: memberData.stats?.joinDate || new Date().toISOString().split('T')[0]
     }
   };
 

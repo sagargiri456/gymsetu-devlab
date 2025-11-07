@@ -12,6 +12,7 @@ import {
 import { FaGlobe } from "react-icons/fa";
 import Image from "next/image";
 import { logoutUser, getCurrentUser, UserData, fetchGymProfile, GymProfile, isMember } from "@/lib/auth";
+import { fetchMemberProfile } from "@/lib/memberApi";
 
 // Styled Components for Dark Mode Toggle
 const StyledWrapper = styled.div`
@@ -205,6 +206,7 @@ const Topbar: React.FC<TopbarProps> = ({ onMenuClick }) => {
   const [gymProfile, setGymProfile] = useState<GymProfile | null>(null);
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
   const [isMemberUser, setIsMemberUser] = useState(false);
+  const [memberProfilePhoto, setMemberProfilePhoto] = useState<string | null>(null);
   const profileDropdownRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
 
@@ -218,8 +220,20 @@ const Topbar: React.FC<TopbarProps> = ({ onMenuClick }) => {
       const memberCheck = isMember();
       setIsMemberUser(memberCheck);
       
-      // Fetch gym profile to get logo (only for owners)
-      if (!memberCheck) {
+      if (memberCheck) {
+        // Fetch member profile to get profile photo
+        try {
+          const memberProfile = await fetchMemberProfile();
+          if (memberProfile.member) {
+            setMemberProfilePhoto(memberProfile.member.profilePhoto || memberProfile.member.dp_link || null);
+          } else if (memberProfile.profilePhoto || memberProfile.dp_link) {
+            setMemberProfilePhoto(memberProfile.profilePhoto || memberProfile.dp_link || null);
+          }
+        } catch (error) {
+          console.error('Failed to load member profile:', error);
+        }
+      } else {
+        // Fetch gym profile to get logo (only for owners)
         try {
           const profile = await fetchGymProfile();
           if (profile) {
@@ -352,7 +366,17 @@ const Topbar: React.FC<TopbarProps> = ({ onMenuClick }) => {
               className="p-[3px] rounded-full w-10 h-10 bg-[#ecf0f3] shadow-[4px_4px_8px_#cbced1,-4px_-4px_8px_#ffffff] hover:shadow-[inset_4px_4px_8px_#cbced1,inset_-4px_-4px_8px_#ffffff] transition-all overflow-hidden"
               title="Profile Menu"
             >
-              {!isMemberUser && gymProfile?.logo_link ? (
+              {isMemberUser && memberProfilePhoto ? (
+                <img
+                  src={memberProfilePhoto}
+                  alt={userName}
+                  className="object-cover w-full h-full rounded-full"
+                  onError={(e) => {
+                    // Fallback to default avatar if image fails to load
+                    e.currentTarget.src = userData ? getProfileImageSrc(userData.name) : "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGNpcmNsZSBjeD0iMjAiIGN5PSIyMCIgcj0iMjAiIGZpbGw9IiM0RjQ2RTUiLz4KPHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxOCIgZm9udC13ZWlnaHQ9ImJvbGQiIGZpbGw9IndoaXRlIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBkeT0iLjNlbSI+TTwvdGV4dD4KPC9zdmc+";
+                  }}
+                />
+              ) : !isMemberUser && gymProfile?.logo_link ? (
                 <img
                   src={gymProfile.logo_link}
                   alt={userName}
@@ -378,7 +402,17 @@ const Topbar: React.FC<TopbarProps> = ({ onMenuClick }) => {
               <div className="absolute right-0 mt-2 w-48 rounded-xl bg-[#ecf0f3] shadow-[8px_8px_16px_#cbced1,-8px_-8px_16px_#ffffff] border-none overflow-hidden z-50">
                 <div className="p-3 border-b border-gray-300 border-opacity-30">
                   <div className="flex items-center space-x-3">
-                    {!isMemberUser && gymProfile?.logo_link ? (
+                    {isMemberUser && memberProfilePhoto ? (
+                      <img
+                        src={memberProfilePhoto}
+                        alt={userName}
+                        className="w-8 h-8 object-cover rounded-full"
+                        onError={(e) => {
+                          // Fallback to default avatar if image fails to load
+                          e.currentTarget.src = userData ? getProfileImageSrc(userData.name) : "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGNpcmNsZSBjeD0iMjAiIGN5PSIyMCIgcj0iMjAiIGZpbGw9IiM0RjQ2RTUiLz4KPHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxOCIgZm9udC13ZWlnaHQ9ImJvbGQiIGZpbGw9IndoaXRlIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBkeT0iLjNlbSI+TTwvdGV4dD4KPC9zdmc+";
+                        }}
+                      />
+                    ) : !isMemberUser && gymProfile?.logo_link ? (
                       <img
                         src={gymProfile.logo_link}
                         alt={userName}

@@ -253,6 +253,7 @@ export interface UpdateMemberProfileData {
   height?: number;
   weight?: number;
   fitnessGoals?: string;
+  dp_link?: string;
 }
 
 export const updateMemberProfile = async (profileData: UpdateMemberProfileData) => {

@@ -355,6 +355,8 @@ def update_member_profile(member_id, gym_id, member):
             member.height = data["height"]
         if "weight" in data:
             member.weight = data["weight"]
+        if "dp_link" in data:
+            member.dp_link = data["dp_link"] if data["dp_link"] else None
 
         db.session.commit()
 

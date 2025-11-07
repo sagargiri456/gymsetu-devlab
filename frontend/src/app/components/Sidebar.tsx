@@ -20,6 +20,7 @@ import {
 } from 'react-icons/md';
 import { IconType } from 'react-icons';
 import { logoutUser, getCurrentUser, UserData, fetchGymProfile, GymProfile, isMember } from '@/lib/auth';
+import { fetchMemberProfile } from '@/lib/memberApi';
 
 interface NavItem {
   title: string;
@@ -64,6 +65,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen = true, onClose }) => {
   const [userData, setUserData] = React.useState<UserData | null>(null);
   const [gymProfile, setGymProfile] = React.useState<GymProfile | null>(null);
   const [isMemberUser, setIsMemberUser] = React.useState(false);
+  const [memberProfilePhoto, setMemberProfilePhoto] = React.useState<string | null>(null);
 
   // Get user data and gym profile on mount
   React.useEffect(() => {
@@ -72,10 +74,23 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen = true, onClose }) => {
       setUserData(user);
       
       // Check if user is a member
-      setIsMemberUser(isMember());
+      const memberCheck = isMember();
+      setIsMemberUser(memberCheck);
       
-      // Fetch gym profile to get logo (only for owners)
-      if (!isMember()) {
+      if (memberCheck) {
+        // Fetch member profile to get profile photo
+        try {
+          const memberProfile = await fetchMemberProfile();
+          if (memberProfile.member) {
+            setMemberProfilePhoto(memberProfile.member.profilePhoto || memberProfile.member.dp_link || null);
+          } else if (memberProfile.profilePhoto || memberProfile.dp_link) {
+            setMemberProfilePhoto(memberProfile.profilePhoto || memberProfile.dp_link || null);
+          }
+        } catch (error) {
+          console.error('Failed to load member profile:', error);
+        }
+      } else {
+        // Fetch gym profile to get logo (only for owners)
         try {
           const profile = await fetchGymProfile();
           if (profile) {
@@ -157,13 +172,28 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen = true, onClose }) => {
         {isMemberUser ? (
           // Member view - show member profile photo or default
           <>
-            {userData?.email ? (
-              <div className="w-12 h-12 flex items-center justify-center rounded-full bg-[#ecf0f3] shadow-[3px_3px_6px_#cbced1,-3px_-3px_6px_#ffffff] text-green-600">
-                <MdAccountCircle size={24} />
+            {memberProfilePhoto ? (
+              <div className="w-12 h-12 flex items-center justify-center rounded-full bg-[#ecf0f3] shadow-[3px_3px_6px_#cbced1,-3px_-3px_6px_#ffffff] overflow-hidden">
+                <img
+                  src={memberProfilePhoto}
+                  alt={userData?.name || 'Member'}
+                  className="w-12 h-12 object-cover rounded-full"
+                  onError={(e) => {
+                    // Fallback to icon if image fails to load
+                    e.currentTarget.style.display = 'none';
+                    const parent = e.currentTarget.parentElement;
+                    if (parent && !parent.querySelector('.fallback-icon')) {
+                      const icon = document.createElement('div');
+                      icon.className = 'fallback-icon w-12 h-12 flex items-center justify-center rounded-full bg-[#ecf0f3] shadow-[3px_3px_6px_#cbced1,-3px_-3px_6px_#ffffff] text-green-600';
+                      icon.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>';
+                      parent.appendChild(icon);
+                    }
+                  }}
+                />
               </div>
             ) : (
               <div className="w-12 h-12 flex items-center justify-center rounded-full bg-[#ecf0f3] shadow-[3px_3px_6px_#cbced1,-3px_-3px_6px_#ffffff] text-green-600">
-                <MdPeople size={24} />
+                <MdAccountCircle size={24} />
               </div>
             )}
             <div className="ml-4">

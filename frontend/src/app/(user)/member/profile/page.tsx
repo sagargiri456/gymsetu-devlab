@@ -10,6 +10,8 @@ const ProfilePage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [memberData, setMemberData] = useState<Member | null>(null);
+  const [showPhotoDialog, setShowPhotoDialog] = useState(false);
+  const [photoLink, setPhotoLink] = useState('');
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -22,7 +24,8 @@ const ProfilePage: React.FC = () => {
     gender: '',
     height: 0,
     weight: 0,
-    fitnessGoals: ''
+    fitnessGoals: '',
+    dp_link: ''
   });
 
   useEffect(() => {
@@ -47,7 +50,8 @@ const ProfilePage: React.FC = () => {
             gender: data.member.gender || '',
             height: data.member.stats?.height || 0,
             weight: data.member.stats?.weight || 0,
-            fitnessGoals: data.member.fitnessGoals || ''
+            fitnessGoals: data.member.fitnessGoals || '',
+            dp_link: data.member.profilePhoto || data.member.dp_link || ''
           });
         } else if (data) {
           // If API returns data directly
@@ -64,7 +68,8 @@ const ProfilePage: React.FC = () => {
             gender: data.gender || '',
             height: data.height || data.stats?.height || 0,
             weight: data.weight || data.stats?.weight || 0,
-            fitnessGoals: data.fitnessGoals || ''
+            fitnessGoals: data.fitnessGoals || '',
+            dp_link: data.profilePhoto || data.dp_link || ''
           });
         }
       } catch (err) {
@@ -102,6 +107,32 @@ const ProfilePage: React.FC = () => {
     } catch (err) {
       console.error('Error updating profile:', err);
       alert('Failed to update profile. Please try again.');
+    }
+  };
+
+  const handleChangePhoto = () => {
+    setPhotoLink(formData.dp_link || memberData?.profilePhoto || memberData?.dp_link || '');
+    setShowPhotoDialog(true);
+  };
+
+  const handleSavePhoto = async () => {
+    try {
+      await updateMemberProfile({ ...formData, dp_link: photoLink });
+      setShowPhotoDialog(false);
+      alert('Photo updated successfully!');
+      
+      // Reload profile to get updated data
+      const data = await fetchMemberProfile();
+      if (data.member) {
+        setMemberData(data.member);
+        setFormData(prev => ({ ...prev, dp_link: data.member.dp_link || photoLink }));
+      } else if (data) {
+        setMemberData(data);
+        setFormData(prev => ({ ...prev, dp_link: data.dp_link || photoLink }));
+      }
+    } catch (err) {
+      console.error('Error updating photo:', err);
+      alert('Failed to update photo. Please try again.');
     }
   };
 
@@ -214,11 +245,36 @@ const ProfilePage: React.FC = () => {
         <div className="lg:col-span-1">
           <div className="rounded-3xl bg-[#ecf0f3] shadow-[8px_8px_16px_#cbced1,-8px_-8px_16px_#ffffff] overflow-hidden p-6">
             <div className="text-center">
-              <div className="w-32 h-32 rounded-full bg-[#ecf0f3] shadow-[8px_8px_16px_#cbced1,-8px_-8px_16px_#ffffff] flex items-center justify-center text-blue-700 text-4xl font-bold mx-auto mb-4">
-                {formData.name.split(' ').map(n => n[0]).join('')}
-              </div>
+              {displayMemberData.profilePhoto || formData.dp_link ? (
+                <div className="relative mx-auto mb-4 w-32 h-32">
+                  <img
+                    src={displayMemberData.profilePhoto || formData.dp_link}
+                    alt={displayMemberData.name}
+                    className="w-32 h-32 rounded-full object-cover shadow-[8px_8px_16px_#cbced1,-8px_-8px_16px_#ffffff]"
+                    onError={(e) => {
+                      // Fallback to initials if image fails to load
+                      const target = e.target as HTMLImageElement;
+                      target.style.display = 'none';
+                      const parent = target.parentElement;
+                      if (parent && !parent.querySelector('.fallback-initials')) {
+                        const fallback = document.createElement('div');
+                        fallback.className = 'fallback-initials w-32 h-32 rounded-full bg-[#ecf0f3] shadow-[8px_8px_16px_#cbced1,-8px_-8px_16px_#ffffff] flex items-center justify-center text-blue-700 text-4xl font-bold';
+                        fallback.textContent = formData.name.split(' ').map(n => n[0]).join('');
+                        parent.appendChild(fallback);
+                      }
+                    }}
+                  />
+                </div>
+              ) : (
+                <div className="w-32 h-32 rounded-full bg-[#ecf0f3] shadow-[8px_8px_16px_#cbced1,-8px_-8px_16px_#ffffff] flex items-center justify-center text-blue-700 text-4xl font-bold mx-auto mb-4">
+                  {formData.name.split(' ').map(n => n[0]).join('')}
+                </div>
+              )}
               {isEditing && (
-                <button className="text-blue-700 hover:underline text-sm mb-4">
+                <button
+                  onClick={handleChangePhoto}
+                  className="text-blue-700 hover:underline text-sm mb-4 transition-all"
+                >
                   Change Photo
                 </button>
               )}
@@ -452,6 +508,56 @@ const ProfilePage: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Photo Change Dialog */}
+      {showPhotoDialog && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+          <div className="bg-[#ecf0f3] rounded-3xl shadow-[8px_8px_16px_#cbced1,-8px_-8px_16px_#ffffff] p-6 max-w-md w-full">
+            <h3 className="text-xl font-bold text-gray-800 mb-4">Change Profile Photo</h3>
+            <p className="text-sm text-gray-600 opacity-70 mb-4">
+              Enter the URL of your profile photo
+            </p>
+            <input
+              type="url"
+              value={photoLink}
+              onChange={(e) => setPhotoLink(e.target.value)}
+              placeholder="https://example.com/photo.jpg"
+              className="w-full px-4 py-3 rounded-xl bg-[#ecf0f3] shadow-[inset_4px_4px_8px_#cbced1,inset_-4px_-4px_8px_#ffffff] text-gray-800 mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+            {photoLink && (
+              <div className="mb-4">
+                <p className="text-sm text-gray-600 opacity-70 mb-2">Preview:</p>
+                <img
+                  src={photoLink}
+                  alt="Preview"
+                  className="w-24 h-24 rounded-full object-cover mx-auto shadow-[4px_4px_8px_#cbced1,-4px_-4px_8px_#ffffff]"
+                  onError={(e) => {
+                    const target = e.target as HTMLImageElement;
+                    target.style.display = 'none';
+                  }}
+                />
+              </div>
+            )}
+            <div className="flex space-x-3">
+              <button
+                onClick={() => {
+                  setShowPhotoDialog(false);
+                  setPhotoLink('');
+                }}
+                className="flex-1 px-4 py-2 bg-[#ecf0f3] shadow-[5px_5px_10px_#cbced1,-5px_-5px_10px_#ffffff] hover:shadow-[inset_5px_5px_10px_#cbced1,inset_-5px_-5px_10px_#ffffff] text-gray-800 rounded-lg transition-all"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSavePhoto}
+                className="flex-1 px-4 py-2 bg-[#ecf0f3] shadow-[5px_5px_10px_#cbced1,-5px_-5px_10px_#ffffff] hover:shadow-[inset_5px_5px_10px_#cbced1,inset_-5px_-5px_10px_#ffffff] text-green-700 rounded-lg transition-all"
+              >
+                Save Photo
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

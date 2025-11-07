@@ -664,12 +664,11 @@ def get_gym_profile():
     email = request.args.get("email")
     gym = Gym.query.filter_by(email=email).first()
     if gym:
-        return (
-            jsonify(
-                {"message": "gym profile fetched successfully", "gym": gym.to_dict()}
-            ),
-            200,
-        )
+        # fmt: off
+        return jsonify(
+            {"message": "gym profile fetched successfully", "gym": gym.to_dict()}
+        ), 200
+        # fmt: on
     else:
         return jsonify({"message": "gym not found"}), 404
 
@@ -739,10 +738,9 @@ def get_gym_by_id():
 
     gym = Gym.query.filter_by(id=id).first()
     if gym:
-        return (
-            jsonify({"message": "gym fetched successfully", "gym": gym.to_dict()}),
-            200,
-        )
+        # fmt: off
+        return jsonify({"message": "gym fetched successfully", "gym": gym.to_dict()}), 200
+        # fmt: on
     else:
         return jsonify({"message": "gym not found"}), 404
 
@@ -848,12 +846,11 @@ def get_all_gyms():
     from models.gym import Gym
 
     gyms = Gym.query.all()
-    return (
-        jsonify(
-            {
-                "message": "All gyms fetched successfully",
-                "gyms": [gym.to_dict() for gym in gyms],
-            }
-        ),
-        200,
-    )
+    # fmt: off
+    return jsonify(
+        {
+            "message": "All gyms fetched successfully",
+            "gyms": [gym.to_dict() for gym in gyms],
+        }
+    ), 200
+    # fmt: on

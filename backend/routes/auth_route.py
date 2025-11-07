@@ -265,11 +265,11 @@ def member_check():
         )
 
 
-@auth_bp.route("/member/login", methods=["POST"])
+@auth_bp.route("/member/setup-password", methods=["POST"])
 @validate_json_request
 @handle_database_errors
-def member_login():
-    """Step 2: Verify password (if exists) or setup password (if first time) and login"""
+def member_setup_password():
+    """Setup password for member (first time login)"""
     from models.members import Member
     from models.gym import Gym
     from database import db
@@ -303,16 +303,102 @@ def member_login():
     if not member.is_active:
         return jsonify({"error": "Member account is inactive"}), 403
 
-    # Check if password exists
+    # Check if password already exists
     if member.password:
-        # Password exists - verify it
-        if not member.check_password(password):
-            return jsonify({"error": "Invalid password"}), 401
-    else:
-        # No password - setup password for first time
+        return (
+            jsonify({"error": "Password already set. Please use login endpoint."}),
+            400,
+        )
+
+    # Setup password for first time
+    try:
+        # Generate password hash
         member.set_password(password)
+
+        # Commit the transaction
         db.session.commit()
         logger.info(f"Password set for member {member.id}")
+        return (
+            jsonify(
+                {
+                    "success": True,
+                    "message": "Password setup successfully. Please login now.",
+                }
+            ),
+            200,
+        )
+    except Exception as e:
+        # Always rollback on error to ensure session is in a clean state
+        try:
+            db.session.rollback()
+        except:
+            pass  # Rollback might already be done, ignore
+
+        logger.error(f"Error setting password for member {member.id}: {str(e)}")
+
+        # Check if it's a database column length error
+        error_msg = str(e)
+        if (
+            "too long for type character varying" in error_msg
+            or "StringDataRightTruncation" in error_msg
+            or "character varying(100)" in error_msg
+        ):
+            return (
+                jsonify(
+                    {
+                        "error": "Database schema needs to be updated. Password column must be VARCHAR(255). Please run: ALTER TABLE member ALTER COLUMN password TYPE VARCHAR(255);"
+                    }
+                ),
+                500,
+            )
+
+        return jsonify({"error": f"Failed to set password: {str(e)}"}), 500
+
+
+@auth_bp.route("/member/login", methods=["POST"])
+@validate_json_request
+@handle_database_errors
+def member_login():
+    """Login member with password"""
+    from models.members import Member
+    from models.gym import Gym
+    import logging
+
+    logger = logging.getLogger(__name__)
+    data = request.get_json()
+
+    # Validate required fields
+    if not data.get("gym_id"):
+        return jsonify({"error": "Gym ID is required"}), 400
+    if not data.get("email"):
+        return jsonify({"error": "Email is required"}), 400
+    if not data.get("password"):
+        return jsonify({"error": "Password is required"}), 400
+
+    gym_id = data["gym_id"]
+    email = data["email"]
+    password = data["password"]
+
+    # Verify gym exists
+    gym = Gym.query.get(gym_id)
+    if not gym:
+        return jsonify({"error": "Gym not found"}), 404
+
+    # Find member in this gym
+    member = Member.query.filter_by(email=email, gym_id=gym_id).first()
+    if not member:
+        return jsonify({"error": "Member not found in this gym"}), 404
+
+    if not member.is_active:
+        return jsonify({"error": "Member account is inactive"}), 403
+
+    # Check if password exists
+    if not member.password:
+        return jsonify({"error": "Password not set. Please setup password first."}), 400
+
+    # Verify password
+    if not member.check_password(password):
+        return jsonify({"error": "Invalid password"}), 401
 
     # Generate JWT token with member info
     # Token format: "member:member_id:gym_id"
@@ -384,9 +470,17 @@ def login():
 
 
 @auth_bp.route("/logout", methods=["POST"])
+@validate_json_request
 def logout():
+    """Logout endpoint - acknowledges logout request"""
     data = request.get_json()
-    token = data["token"]
+
+    # Token is optional - if provided, we acknowledge it
+    # The frontend will clear the token from localStorage regardless
+    token = data.get("token") if data else None
+
+    # Note: JWT tokens are stateless, so we don't need to invalidate them server-side
+    # The frontend clearing the token is sufficient for logout
     return jsonify({"message": "Logged out successfully"}), 200
 
 
@@ -483,17 +577,63 @@ def change_password():
     return jsonify({"message": "Invalid old password"}), 401
 
 
+@auth_bp.route("/me", methods=["GET"])
+@jwt_required()
+def get_current_user():
+    """Get current user profile from JWT token"""
+    from models.gym import Gym
+
+    try:
+        current_user_id = get_jwt_identity()
+
+        if not current_user_id:
+            return jsonify({"message": "Invalid token: missing identity"}), 401
+
+        # Convert to int if it's a string
+        if isinstance(current_user_id, str):
+            current_user_id = int(current_user_id)
+
+        # Get the gym/user from database
+        gym = Gym.query.get(current_user_id)
+
+        if not gym:
+            return jsonify({"message": "User not found"}), 404
+
+        return (
+            jsonify(
+                {
+                    "success": True,
+                    "user": {
+                        "id": gym.id,
+                        "name": gym.name,
+                        "email": gym.email,
+                        "role": gym.role,
+                    },
+                }
+            ),
+            200,
+        )
+    except (ValueError, TypeError) as e:
+        return jsonify({"message": f"Invalid token: {str(e)}"}), 401
+    except Exception as e:
+        return jsonify({"message": f"Error fetching user: {str(e)}"}), 500
+
+
 @auth_bp.route("/get_gym_profile", methods=["GET"])
 def get_gym_profile():
     from models.gym import Gym
 
     email = request.args.get("email")
     gym = Gym.query.filter_by(email=email).first()
-    return (
-        jsonify({"message": "gym profile fetched successfully", "gym": gym.to_dict()}),
-        200 if gym else jsonify({"message": "gym not found"}),
-        404,
-    )
+    if gym:
+        return (
+            jsonify(
+                {"message": "gym profile fetched successfully", "gym": gym.to_dict()}
+            ),
+            200,
+        )
+    else:
+        return jsonify({"message": "gym not found"}), 404
 
 
 @auth_bp.route("/update_gym_profile", methods=["PUT"])
@@ -509,6 +649,7 @@ def update_gym_profile():
     state = data["state"]
     zip = data["zip"]
     phone = data["phone"]
+    logo_link = data.get("logo_link")  # Optional field
     gym = Gym.query.filter_by(email=email).first()
     if gym:
         gym.name = name
@@ -517,6 +658,12 @@ def update_gym_profile():
         gym.state = state
         gym.zip = zip
         gym.phone = phone
+        if (
+            logo_link is not None
+        ):  # Only update if provided (can be empty string to clear)
+            gym.logo_link = (
+                logo_link if logo_link else None
+            )  # Convert empty string to None
         db.session.commit()
         return jsonify({"message": "gym profile updated successfully"}), 200
     return jsonify({"message": "gym not found"}), 404
@@ -543,11 +690,109 @@ def get_gym_by_id():
 
     id = request.args.get("id")
     gym = Gym.query.filter_by(id=id).first()
-    return (
-        jsonify({"message": "gym fetched successfully", "gym": gym.to_dict()}),
-        200 if gym else jsonify({"message": "gym not found"}),
-        404,
-    )
+    if gym:
+        return (
+            jsonify({"message": "gym fetched successfully", "gym": gym.to_dict()}),
+            200,
+        )
+    else:
+        return jsonify({"message": "gym not found"}), 404
+
+
+@auth_bp.route("/dashboard_stats", methods=["GET"])
+@jwt_required()
+@handle_database_errors
+def get_dashboard_stats():
+    """Get dashboard statistics for the current gym"""
+    from models.gym import Gym
+    from models.members import Member
+    from models.trainers import Trainer
+    from models.subscription import Subscription
+    from models.subscription_plan import SubscriptionPlan
+    from datetime import datetime, timedelta
+
+    try:
+        current_user_id = get_jwt_identity()
+
+        if not current_user_id:
+            return jsonify({"message": "Invalid token: missing identity"}), 401
+
+        # Convert to int if it's a string
+        if isinstance(current_user_id, str):
+            current_user_id = int(current_user_id)
+
+        # Get the gym from database
+        gym = Gym.query.get(current_user_id)
+
+        if not gym:
+            return jsonify({"message": "User not found"}), 404
+
+        gym_id = gym.id
+
+        # Calculate current month start and end
+        now = datetime.utcnow()
+        month_start = datetime(now.year, now.month, 1)
+        month_end = month_start + timedelta(days=32)
+        month_end = month_end.replace(day=1) - timedelta(days=1)
+
+        # Monthly Members (members created in current month)
+        monthly_members = Member.query.filter(
+            Member.gym_id == gym_id,
+            Member.created_at >= month_start,
+            Member.created_at <= month_end,
+        ).count()
+
+        # Total Trainers
+        total_trainers = Trainer.query.filter_by(gym_id=gym_id).count()
+
+        # Unpaid Memberships (subscriptions that are expired or not active)
+        unpaid_memberships = Subscription.query.filter(
+            Subscription.gym_id == gym_id,
+            (Subscription.subscription_status != "active")
+            | (Subscription.end_date < now),
+        ).count()
+
+        # Total Income (sum of prices from active subscriptions)
+        # Get all active subscriptions and their plan prices
+        active_subscriptions = Subscription.query.filter(
+            Subscription.gym_id == gym_id,
+            Subscription.subscription_status == "active",
+            Subscription.end_date >= now,
+        ).all()
+
+        total_income = 0
+        for subscription in active_subscriptions:
+            # Get the subscription plan price
+            plan = SubscriptionPlan.query.filter_by(
+                name=subscription.subscription_plan, gym_id=gym_id
+            ).first()
+            if plan:
+                total_income += plan.price
+
+        # Format income (convert to K format if > 1000)
+        income_display = (
+            f"{total_income/1000:.0f}K" if total_income >= 1000 else str(total_income)
+        )
+
+        return (
+            jsonify(
+                {
+                    "success": True,
+                    "stats": {
+                        "monthly_members": monthly_members,
+                        "total_trainers": total_trainers,
+                        "unpaid_memberships": unpaid_memberships,
+                        "total_income": total_income,
+                        "total_income_display": income_display,
+                    },
+                }
+            ),
+            200,
+        )
+    except (ValueError, TypeError) as e:
+        return jsonify({"message": f"Invalid token: {str(e)}"}), 401
+    except Exception as e:
+        return jsonify({"message": f"Error fetching stats: {str(e)}"}), 500
 
 
 @auth_bp.route("/get_all_gyms", methods=["GET"])

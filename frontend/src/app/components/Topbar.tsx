@@ -1,13 +1,17 @@
 'use client';
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import styled from "styled-components";
+import { useRouter } from "next/navigation";
 import {
   MdMenu,
   MdSearch,
   MdOutlineNotifications,
+  MdLogout,
+  MdAccountCircle,
 } from "react-icons/md";
 import { FaGlobe } from "react-icons/fa";
 import Image from "next/image";
+import { logoutUser, getCurrentUser, UserData, fetchGymProfile, GymProfile } from "@/lib/auth";
 
 // Styled Components for Dark Mode Toggle
 const StyledWrapper = styled.div`
@@ -197,8 +201,79 @@ interface TopbarProps {
 
 const Topbar: React.FC<TopbarProps> = ({ onMenuClick }) => {
   const notificationCount = 13;
-  const adminName = "admin";
-  const profileImageSrc = "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGNpcmNsZSBjeD0iMjAiIGN5PSIyMCIgcj0iMjAiIGZpbGw9IiM0RjQ2RTUiLz4KPHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxOCIgZm9udC13ZWlnaHQ9ImJvbGQiIGZpbGw9IndoaXRlIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBkeT0iLjNlbSI+QTwvdGV4dD4KPC9zdmc+";
+  const [userData, setUserData] = useState<UserData | null>(null);
+  const [gymProfile, setGymProfile] = useState<GymProfile | null>(null);
+  const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
+  const profileDropdownRef = useRef<HTMLDivElement>(null);
+  const router = useRouter();
+
+  // Get user data and gym profile on mount
+  useEffect(() => {
+    const loadUserData = async () => {
+      const user = await getCurrentUser();
+      setUserData(user);
+      
+      // Fetch gym profile to get logo
+      try {
+        const profile = await fetchGymProfile();
+        if (profile) {
+          setGymProfile(profile);
+        }
+      } catch (error) {
+        console.error('Failed to load gym profile:', error);
+      }
+    };
+    loadUserData();
+  }, []);
+
+  // Generate profile image from user's first letter (fallback)
+  const getProfileImageSrc = (name: string): string => {
+    const firstLetter = name.charAt(0).toUpperCase();
+    const svg = `<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="20" cy="20" r="20" fill="#4F46E5"/>
+      <text x="50%" y="50%" font-family="Arial, sans-serif" font-size="18" font-weight="bold" fill="white" text-anchor="middle" dy=".3em">${firstLetter}</text>
+    </svg>`;
+    return `data:image/svg+xml;base64,${btoa(svg)}`;
+  };
+
+  const adminName = gymProfile?.name || userData?.name || "Admin";
+  const adminEmail = gymProfile?.email || userData?.email || "admin@gmail.com";
+  // Use gym logo if available, otherwise use default avatar
+  const profileImageSrc = gymProfile?.logo_link || (userData ? getProfileImageSrc(userData.name) : "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGNpcmNsZSBjeD0iMjAiIGN5PSIyMCIgcj0iMjAiIGZpbGw9IiM0RjQ2RTUiLz4KPHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxOCIgZm9udC13ZWlnaHQ9ImJvbGQiIGZpbGw9IndoaXRlIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBkeT0iLjNlbSI+QTwvdGV4dD4KPC9zdmc+");
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (profileDropdownRef.current && !profileDropdownRef.current.contains(event.target as Node)) {
+        setProfileDropdownOpen(false);
+      }
+    };
+
+    if (profileDropdownOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [profileDropdownOpen]);
+
+  const handleLogout = async () => {
+    await logoutUser();
+    router.push('/login');
+  };
+
+  const handleNotificationClick = () => {
+    // Placeholder for notification functionality
+    console.log('Notifications clicked');
+    // TODO: Implement notification dropdown or modal
+  };
+
+  const handleLanguageClick = () => {
+    // Placeholder for language selection functionality
+    console.log('Language clicked');
+    // TODO: Implement language selection dropdown
+  };
 
   return (
     <header className="fixed top-0 right-0 z-30 w-full lg:w-[calc(100%-256px)] transition-all duration-300 ease-in-out">
@@ -231,28 +306,109 @@ const Topbar: React.FC<TopbarProps> = ({ onMenuClick }) => {
           </div>
 
           {/* Language */}
-          <button className="text-gray-700 p-3 rounded-full bg-[#ecf0f3] shadow-[4px_4px_8px_#cbced1,-4px_-4px_8px_#ffffff] hover:shadow-[inset_4px_4px_8px_#cbced1,inset_-4px_-4px_8px_#ffffff] transition-all">
+          <button 
+            onClick={handleLanguageClick}
+            className="text-gray-700 p-3 rounded-full bg-[#ecf0f3] shadow-[4px_4px_8px_#cbced1,-4px_-4px_8px_#ffffff] hover:shadow-[inset_4px_4px_8px_#cbced1,inset_-4px_-4px_8px_#ffffff] transition-all"
+            title="Change Language"
+          >
             <FaGlobe size={18} />
           </button>
 
           {/* Notifications */}
-          <button className="relative text-gray-700 p-3 rounded-full bg-[#ecf0f3] shadow-[4px_4px_8px_#cbced1,-4px_-4px_8px_#ffffff] hover:shadow-[inset_4px_4px_8px_#cbced1,inset_-4px_-4px_8px_#ffffff] transition-all">
+          <button 
+            onClick={handleNotificationClick}
+            className="relative text-gray-700 p-3 rounded-full bg-[#ecf0f3] shadow-[4px_4px_8px_#cbced1,-4px_-4px_8px_#ffffff] hover:shadow-[inset_4px_4px_8px_#cbced1,inset_-4px_-4px_8px_#ffffff] transition-all"
+            title="Notifications"
+          >
             <MdOutlineNotifications size={22} />
             <span className="absolute top-0 right-0 inline-flex items-center justify-center px-1.5 py-0.5 text-[10px] font-bold text-white transform translate-x-1/2 -translate-y-1/2 bg-red-500 rounded-full">
               {notificationCount}
             </span>
           </button>
 
-          {/* Profile Avatar */}
-          <button className="p-[3px] rounded-full w-10 h-10 bg-[#ecf0f3] shadow-[4px_4px_8px_#cbced1,-4px_-4px_8px_#ffffff] hover:shadow-[inset_4px_4px_8px_#cbced1,inset_-4px_-4px_8px_#ffffff] transition-all overflow-hidden">
-            <Image
-              src={profileImageSrc}
-              alt={adminName}
-              width={40}
-              height={40}
-              className="object-cover w-full h-full rounded-full"
-            />
-          </button>
+          {/* Profile Avatar with Dropdown */}
+          <div className="relative" ref={profileDropdownRef}>
+            <button 
+              onClick={() => setProfileDropdownOpen(!profileDropdownOpen)}
+              className="p-[3px] rounded-full w-10 h-10 bg-[#ecf0f3] shadow-[4px_4px_8px_#cbced1,-4px_-4px_8px_#ffffff] hover:shadow-[inset_4px_4px_8px_#cbced1,inset_-4px_-4px_8px_#ffffff] transition-all overflow-hidden"
+              title="Profile Menu"
+            >
+              {gymProfile?.logo_link ? (
+                <img
+                  src={gymProfile.logo_link}
+                  alt={adminName}
+                  className="object-cover w-full h-full rounded-full"
+                  onError={(e) => {
+                    // Fallback to default avatar if image fails to load
+                    e.currentTarget.src = userData ? getProfileImageSrc(userData.name) : "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGNpcmNsZSBjeD0iMjAiIGN5PSIyMCIgcj0iMjAiIGZpbGw9IiM0RjQ2RTUiLz4KPHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxOCIgZm9udC13ZWlnaHQ9ImJvbGQiIGZpbGw9IndoaXRlIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBkeT0iLjNlbSI+QTwvdGV4dD4KPC9zdmc+";
+                  }}
+                />
+              ) : (
+                <Image
+                  src={profileImageSrc}
+                  alt={adminName}
+                  width={40}
+                  height={40}
+                  className="object-cover w-full h-full rounded-full"
+                />
+              )}
+            </button>
+
+            {/* Profile Dropdown Menu */}
+            {profileDropdownOpen && (
+              <div className="absolute right-0 mt-2 w-48 rounded-xl bg-[#ecf0f3] shadow-[8px_8px_16px_#cbced1,-8px_-8px_16px_#ffffff] border-none overflow-hidden z-50">
+                <div className="p-3 border-b border-gray-300 border-opacity-30">
+                  <div className="flex items-center space-x-3">
+                    {gymProfile?.logo_link ? (
+                      <img
+                        src={gymProfile.logo_link}
+                        alt={adminName}
+                        className="w-8 h-8 object-cover rounded-full"
+                        onError={(e) => {
+                          // Fallback to default avatar if image fails to load
+                          e.currentTarget.src = userData ? getProfileImageSrc(userData.name) : "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGNpcmNsZSBjeD0iMjAiIGN5PSIyMCIgcj0iMjAiIGZpbGw9IiM0RjQ2RTUiLz4KPHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxOCIgZm9udC13ZWlnaHQ9ImJvbGQiIGZpbGw9IndoaXRlIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBkeT0iLjNlbSI+QTwvdGV4dD4KPC9zdmc+";
+                        }}
+                      />
+                    ) : (
+                      <Image
+                        src={profileImageSrc}
+                        alt={adminName}
+                        width={32}
+                        height={32}
+                        className="object-cover rounded-full"
+                      />
+                    )}
+                    <div>
+                      <p className="text-sm font-semibold text-gray-800">{adminName}</p>
+                      <p className="text-xs text-gray-600">{adminEmail}</p>
+                    </div>
+                  </div>
+                </div>
+                <div className="p-2">
+                  <button
+                    onClick={() => {
+                      setProfileDropdownOpen(false);
+                      router.push('/dashboard/settings');
+                    }}
+                    className="w-full flex items-center space-x-3 px-3 py-2 rounded-lg text-gray-700 hover:bg-[#ecf0f3] hover:shadow-[inset_4px_4px_8px_#cbced1,inset_-4px_-4px_8px_#ffffff] transition-all"
+                  >
+                    <MdAccountCircle size={20} />
+                    <span className="text-sm">Profile</span>
+                  </button>
+                  <button
+                    onClick={() => {
+                      setProfileDropdownOpen(false);
+                      handleLogout();
+                    }}
+                    className="w-full flex items-center space-x-3 px-3 py-2 rounded-lg text-red-600 hover:bg-[#ecf0f3] hover:shadow-[inset_4px_4px_8px_#cbced1,inset_-4px_-4px_8px_#ffffff] transition-all mt-1"
+                  >
+                    <MdLogout size={20} />
+                    <span className="text-sm font-semibold">Logout</span>
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </header>

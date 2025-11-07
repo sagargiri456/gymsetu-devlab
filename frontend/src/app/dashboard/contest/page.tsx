@@ -5,6 +5,7 @@ import Image from "next/image";
 import { MdAddCircleOutline } from "react-icons/md";
 import Modal from "../../components/Modal";
 import { getApiUrl } from "@/lib/api";
+import { getToken, isMember } from "@/lib/auth";
 
 // Sample gyms for dropdown
 const gyms = [
@@ -29,7 +30,14 @@ interface Contest {
   gym_name?: string;
 }
 
-const ContestCard = ({ contest }: { contest: Contest }) => {
+interface ContestCardProps {
+  contest: Contest;
+  isRegistered?: boolean;
+  onParticipate?: (contestId: number) => void;
+  isParticipating?: boolean;
+}
+
+const ContestCard = ({ contest, isRegistered = false, onParticipate, isParticipating = false }: ContestCardProps) => {
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
       year: 'numeric',
@@ -38,8 +46,14 @@ const ContestCard = ({ contest }: { contest: Contest }) => {
     });
   };
 
+  const handleParticipate = () => {
+    if (onParticipate) {
+      onParticipate(contest.id);
+    }
+  };
+
   return (
-    <div className="bg-gray-100 rounded-3xl p-4 shadow-[5px_5px_15px_#d1d9e6,-5px_-5px_15px_#ffffff] hover:shadow-[inset_5px_5px_10px_#d1d9e6,inset_-5px_-5px_10px_#ffffff] transition-all duration-300 cursor-pointer">
+    <div className="bg-gray-100 rounded-3xl p-4 shadow-[5px_5px_15px_#d1d9e6,-5px_-5px_15px_#ffffff] hover:shadow-[inset_5px_5px_10px_#d1d9e6,inset_-5px_-5px_10px_#ffffff] transition-all duration-300">
       <Image
         src={contest.banner_link}
         alt={contest.name}
@@ -60,6 +74,26 @@ const ContestCard = ({ contest }: { contest: Contest }) => {
           <span className="font-medium">Gym:</span> {contest.gym_name}
         </p>
       </div>
+      {onParticipate && (
+        <div className="mt-4">
+          {isRegistered ? (
+            <button
+              disabled
+              className="w-full px-4 py-2 rounded-xl bg-green-500 text-white font-medium shadow-[3px_3px_6px_#d1d9e6,-3px_-3px_6px_#ffffff] cursor-not-allowed opacity-75"
+            >
+              Registered ✓
+            </button>
+          ) : (
+            <button
+              onClick={handleParticipate}
+              disabled={isParticipating}
+              className="w-full px-4 py-2 rounded-xl bg-indigo-500 text-white font-medium shadow-[3px_3px_6px_#d1d9e6,-3px_-3px_6px_#ffffff] hover:shadow-[inset_3px_3px_6px_#4b4bff,inset_-3px_-3px_6px_#6b6bff] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isParticipating ? 'Participating...' : 'Participate'}
+            </button>
+          )}
+        </div>
+      )}
     </div>
   );
 };
@@ -70,15 +104,66 @@ const ContestsPage: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [contests, setContests] = useState<{ongoing: Contest[], upcoming: Contest[]}>({ongoing: [], upcoming: []});
   const [loading, setLoading] = useState(true);
+  const [registeredContests, setRegisteredContests] = useState<Set<number>>(new Set());
+  const [participatingContestId, setParticipatingContestId] = useState<number | null>(null);
+  const [isMemberUser, setIsMemberUser] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
     description: "",
     banner_link: "",
     start_date: "",
     end_date: "",
-    gym_id: "",
     type: "ongoing" as "ongoing" | "upcoming",
   });
+
+  // Check if user is a member
+  useEffect(() => {
+    setIsMemberUser(isMember());
+  }, []);
+
+  // Fetch registration status for all contests (if member)
+  useEffect(() => {
+    const fetchRegistrationStatus = async () => {
+      if (!isMemberUser) return;
+      
+      const token = getToken();
+      if (!token) return;
+      
+      const allContests = [...contests.ongoing, ...contests.upcoming];
+      const registered = new Set<number>();
+      
+      // Check registration status for each contest
+      for (const contest of allContests) {
+        try {
+          const response = await fetch(
+            getApiUrl(`api/participants/check_registration?contest_id=${contest.id}`),
+            {
+              method: "GET",
+              headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${token}`,
+              },
+            }
+          );
+          
+          if (response.ok) {
+            const data = await response.json();
+            if (data.success && data.is_registered) {
+              registered.add(contest.id);
+            }
+          }
+        } catch (error) {
+          console.error(`Failed to check registration for contest ${contest.id}:`, error);
+        }
+      }
+      
+      setRegisteredContests(registered);
+    };
+
+    if (contests.ongoing.length > 0 || contests.upcoming.length > 0) {
+      fetchRegistrationStatus();
+    }
+  }, [contests, isMemberUser]);
 
   // Fetch contests data from backend
   useEffect(() => {
@@ -172,57 +257,117 @@ const ContestsPage: React.FC = () => {
     const { name, value } = e.target;
     setFormData(prev => ({
       ...prev,
-      [name]: name === 'gym_id' ? parseInt(value) || 0 : value
+      [name]: value
     }));
+  };
+
+  const handleParticipate = async (contestId: number) => {
+    if (!isMemberUser) {
+      alert("Only members can participate in contests.");
+      return;
+    }
+
+    try {
+      setParticipatingContestId(contestId);
+      const token = getToken();
+      
+      if (!token) {
+        alert("Please login again.");
+        router.push("/login");
+        return;
+      }
+
+      const response = await fetch(getApiUrl("api/participants/register"), {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`,
+        },
+        body: JSON.stringify({ contest_id: contestId }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success) {
+          // Mark contest as registered
+          setRegisteredContests(prev => new Set([...prev, contestId]));
+          alert("Successfully registered for contest! You will now appear on the leaderboard.");
+        } else {
+          alert(data.message || "Failed to register for contest");
+        }
+      } else {
+        const errorData = await response.json().catch(() => ({ message: "Failed to register" }));
+        alert(errorData.message || "Failed to register for contest");
+      }
+    } catch (error) {
+      console.error("Network error:", error);
+      alert("Cannot connect to server. Please check your connection and try again.");
+    } finally {
+      setParticipatingContestId(null);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const newContest: Contest = {
-      id: Math.max(...contests[formData.type].map(c => c.id)) + 1,
-      name: formData.name,
-      description: formData.description,
-      banner_link: formData.banner_link || "https://images.unsplash.com/photo-1598970434795-0c54fe7c0648?auto=format&fit=crop&w=800&q=60",
-      start_date: new Date(formData.start_date).toISOString(),
-      end_date: new Date(formData.end_date).toISOString(),
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-      gym_id: parseInt(formData.gym_id),
-      gym_name: gyms.find(g => g.id === parseInt(formData.gym_id))?.name || "",
-    };
 
     try {
-      const response = await fetch(getApiUrl("api/contests/add_contest"), {
+      const token = localStorage.getItem("access_token");
+      if (!token) {
+        alert("Please login again.");
+        router.push("/login");
+        return;
+      }
+
+      const response = await fetch(getApiUrl("api/contest/add_contest"), {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${localStorage.getItem("access_token")}`,
+          "Authorization": `Bearer ${token}`,
         },
         body: JSON.stringify({
-          name: newContest.name,
-          description: newContest.description,
-          banner_link: newContest.banner_link,
-          start_date: newContest.start_date,
-          end_date: newContest.end_date,
-          gym_id: newContest.gym_id,
+          name: formData.name,
+          description: formData.description,
+          banner_link: formData.banner_link || null,
+          start_date: new Date(formData.start_date).toISOString(),
+          end_date: new Date(formData.end_date).toISOString(),
         }),
       });
       
         if (response.ok) {
           const data = await response.json();
           console.log("Add contest response:", data);
-          if (data.success && data.contest) {
-            // Use the contest data returned from backend
-            setContests(prev => ({
-              ...prev,
-              [formData.type]: [...prev[formData.type], data.contest]
-            }));
-          } else {
-            // Fallback to using the newContest we created
-            setContests(prev => ({
-              ...prev,
-              [formData.type]: [...prev[formData.type], newContest]
-            }));
+          
+          // Reload contests from backend to get the updated list
+          const token = localStorage.getItem("access_token");
+          const refreshResponse = await fetch(getApiUrl("api/contest/get_all_contests"), {
+            method: "GET",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${token}`,
+            },
+          });
+          
+          if (refreshResponse.ok) {
+            const refreshData = await refreshResponse.json();
+            if (refreshData.success && refreshData.contests) {
+              // Separate contests into ongoing and upcoming based on dates
+              const now = new Date();
+              const ongoing: Contest[] = [];
+              const upcoming: Contest[] = [];
+              
+              refreshData.contests.forEach((contest: Contest) => {
+                const startDate = new Date(contest.start_date);
+                const endDate = new Date(contest.end_date);
+                
+                if (startDate <= now && endDate >= now) {
+                  ongoing.push(contest);
+                } else if (startDate > now) {
+                  upcoming.push(contest);
+                }
+              });
+              
+              setContests({ ongoing, upcoming });
+            }
           }
           
           setFormData({
@@ -231,16 +376,20 @@ const ContestsPage: React.FC = () => {
             banner_link: "",
             start_date: "",
             end_date: "",
-            gym_id: "",
             type: "ongoing",
           });
           setIsModalOpen(false);
           alert("Contest added successfully!");
         } else {
-          const errorData = await response.json();
+          let errorMessage = "Failed to add contest";
+          try {
+            const errorData = await response.json();
+            errorMessage = errorData.message || errorData.msg || errorMessage;
+          } catch {
+            errorMessage = response.statusText || errorMessage;
+          }
           console.error("Failed to add contest:", response.status, response.statusText);
-          console.error("Error response:", errorData);
-          alert(`Failed to add contest: ${errorData.message || response.statusText}`);
+          alert(`Failed to add contest: ${errorMessage}`);
         }
     } catch (error) {
       console.error("Network error:", error);
@@ -289,7 +438,13 @@ const ContestsPage: React.FC = () => {
           </div>
         ) : contests[tab].length > 0 ? (
           contests[tab].map((contest) => (
-            <ContestCard key={contest.id} contest={contest} />
+            <ContestCard
+              key={contest.id}
+              contest={contest}
+              isRegistered={registeredContests.has(contest.id)}
+              onParticipate={isMemberUser ? handleParticipate : undefined}
+              isParticipating={participatingContestId === contest.id}
+            />
           ))
         ) : (
           <div className="col-span-full flex justify-center items-center py-12">
@@ -374,26 +529,6 @@ const ContestsPage: React.FC = () => {
                 className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
               />
             </div>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Gym
-            </label>
-            <select
-              name="gym_id"
-              value={formData.gym_id}
-              onChange={handleInputChange}
-              required
-              className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-            >
-              <option value="">Select Gym</option>
-              {gyms.map((gym) => (
-                <option key={gym.id} value={gym.id}>
-                  {gym.name}
-                </option>
-              ))}
-            </select>
           </div>
 
           <div>

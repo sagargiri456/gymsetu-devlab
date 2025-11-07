@@ -19,16 +19,27 @@ def add_contest(current_gym):
     description = data["description"]
     start_date = data["start_date"]
     end_date = data["end_date"]
+    banner_link = data.get("banner_link")  # Optional field
     contest = Contest(
         name=name,
         description=description,
         start_date=start_date,
         end_date=end_date,
+        banner_link=banner_link,
         gym_id=current_gym.id,
     )
     db.session.add(contest)
     db.session.commit()
-    return jsonify({"success": True, "message": "Contest added successfully"}), 201
+    return (
+        jsonify(
+            {
+                "success": True,
+                "message": "Contest added successfully",
+                "contest": contest.to_dict(),
+            }
+        ),
+        201,
+    )
 
 
 @contest_bp.route("/get_contest_by_id", methods=["GET"])

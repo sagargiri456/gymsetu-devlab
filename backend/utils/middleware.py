@@ -108,6 +108,14 @@ def handle_database_errors(f):
         except Exception as e:
             logger.error(f"Database error in {f.__name__}: {str(e)}")
 
+            # Ensure session is rolled back if there's a database error
+            try:
+                from database import db
+
+                db.session.rollback()
+            except:
+                pass  # Ignore rollback errors if session is already rolled back
+
             # Check for specific database errors
             error_msg = str(e).lower()
             if "unique constraint" in error_msg or "duplicate" in error_msg:
@@ -136,6 +144,19 @@ def handle_database_errors(f):
                         }
                     ),
                     400,
+                )
+            elif (
+                "too long for type character varying" in error_msg
+                or "stringdatarighttruncation" in error_msg
+            ):
+                return (
+                    jsonify(
+                        {
+                            "error": "Database Schema Error",
+                            "message": "Database column length is too small. Please update schema.",
+                        }
+                    ),
+                    500,
                 )
             else:
                 return (

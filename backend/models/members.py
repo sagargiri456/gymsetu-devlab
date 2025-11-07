@@ -8,7 +8,9 @@ class Member(db.Model):
     name = db.Column(db.String(100), nullable=False)
     email = db.Column(db.String(100), nullable=False, unique=True)
     phone = db.Column(db.String(100), nullable=False)
-    password = db.Column(db.String(100), nullable=True)
+    password = db.Column(
+        db.String(255), nullable=True
+    )  # Increased length for password hashes
     gender = db.Column(db.String(100), nullable=True)
     dob = db.Column(db.DateTime, nullable=True)
     weight = db.Column(db.Float, nullable=True)

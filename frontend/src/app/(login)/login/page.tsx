@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { getApiUrl } from "@/lib/api";
-import { isAuthenticated, verifyToken } from "@/lib/auth";
+import { isAuthenticated, verifyToken, setUserData } from "@/lib/auth";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -42,6 +42,12 @@ export default function LoginPage() {
         const data = await response.json();
         console.log(data.access_token);
         localStorage.setItem("access_token", data.access_token);
+        
+        // Store user data in cookies if available
+        if (data.user) {
+          setUserData(data.user);
+        }
+        
         router.push("/dashboard");
       } else {
         console.error("Login failed:", response.statusText);

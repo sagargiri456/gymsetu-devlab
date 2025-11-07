@@ -1,8 +1,8 @@
 "use client";
-import React from 'react';
-import Link from 'next/link';
+import React, { useState, useEffect } from 'react';
 import { MdPeople, MdOutlineSportsGymnastics, MdOutlinePayment, MdMonetizationOn, MdArrowUpward } from 'react-icons/md';
 import { FaUserCircle } from 'react-icons/fa';
+import { getCurrentUser, UserData, getDashboardStatsData, DashboardStats } from '@/lib/auth';
 
 // --- Neumorphic Card Component ---
 interface StatCardProps {
@@ -69,32 +69,50 @@ const NeumorphicChartCard: React.FC<ChartCardProps> = ({ title, subtitle, childr
 // --- Main Dashboard Component ---
 
 const DashboardPage: React.FC = () => {
-  // Data mimicking the summary cards from the HTML structure
+  const [userData, setUserData] = useState<UserData | null>(null);
+  const [dashboardStats, setDashboardStats] = useState<DashboardStats | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  // Get user data and stats on mount
+  useEffect(() => {
+    const loadData = async () => {
+      const [user, stats] = await Promise.all([
+        getCurrentUser(),
+        getDashboardStatsData(),
+      ]);
+      setUserData(user);
+      setDashboardStats(stats);
+      setLoading(false);
+    };
+    loadData();
+  }, []);
+
+  // Format stats data for display
   const stats = [
     {
       title: "Monthly Members",
-      value: "450",
+      value: dashboardStats?.monthly_members?.toString() || "0",
       Icon: MdPeople,
       bgColorClass: "bg-green-200",
       iconColorClass: "text-green-800",
     },
     {
       title: "Total Trainers",
-      value: "15",
+      value: dashboardStats?.total_trainers?.toString() || "0",
       Icon: MdOutlineSportsGymnastics,
       bgColorClass: "bg-blue-200",
       iconColorClass: "text-blue-800",
     },
     {
       title: "Unpaid Memberships",
-      value: "8",
+      value: dashboardStats?.unpaid_memberships?.toString() || "0",
       Icon: MdOutlinePayment,
       bgColorClass: "bg-red-200",
       iconColorClass: "text-red-800",
     },
     {
       title: "Total Income (DHS)",
-      value: "85K",
+      value: dashboardStats?.total_income_display || "0",
       Icon: MdMonetizationOn,
       bgColorClass: "bg-yellow-200",
       iconColorClass: "text-yellow-800",
@@ -108,44 +126,33 @@ const DashboardPage: React.FC = () => {
       {/* Welcome Header */}
       <div className="mb-8 mt-4 lg:mt-6">
         <h4 className="text-3xl font-bold text-gray-800 drop-shadow-[1px_1px_0px_#fff]">
-          Hi, Welcome back, Admin
+          Hi, Welcome back, {userData?.name || 'Admin'}
         </h4>
-      </div>
-
-      {/* CTA Buttons for Register and Login */}
-      <div className="mb-8 flex flex-col sm:flex-row gap-4">
-        <Link href="/register" className="flex-1 sm:flex-initial">
-          <div className="p-6 rounded-3xl bg-[#ecf0f3] shadow-[8px_8px_16px_#cbced1,-8px_-8px_16px_#ffffff] hover:shadow-[inset_4px_4px_8px_#cbced1,inset_-4px_-4px_8px_#ffffff] transition-all duration-300 text-center cursor-pointer">
-            <h5 className="text-lg font-bold text-gray-800 mb-2">New to GymSetu?</h5>
-            <p className="text-sm text-gray-600 mb-4 opacity-80">Create your account and start managing your gym today</p>
-            <button className="px-6 py-3 rounded-xl font-semibold text-white bg-gradient-to-r from-[#FFC107] via-[#FF8A00] to-[#E91E63] shadow-[4px_4px_8px_#cbced1,-4px_-4px_8px_#ffffff] hover:opacity-90 transition-all">
-              Register Now
-            </button>
-          </div>
-        </Link>
-        <Link href="/login" className="flex-1 sm:flex-initial">
-          <div className="p-6 rounded-3xl bg-[#ecf0f3] shadow-[8px_8px_16px_#cbced1,-8px_-8px_16px_#ffffff] hover:shadow-[inset_4px_4px_8px_#cbced1,inset_-4px_-4px_8px_#ffffff] transition-all duration-300 text-center cursor-pointer">
-            <h5 className="text-lg font-bold text-gray-800 mb-2">Already have an account?</h5>
-            <p className="text-sm text-gray-600 mb-4 opacity-80">Sign in to access your dashboard and manage your gym</p>
-            <button className="px-6 py-3 rounded-xl font-semibold text-gray-800 bg-[#ecf0f3] shadow-[4px_4px_8px_#cbced1,-4px_-4px_8px_#ffffff] hover:shadow-[inset_4px_4px_8px_#cbced1,inset_-4px_-4px_8px_#ffffff] transition-all">
-              Login
-            </button>
-          </div>
-        </Link>
       </div>
 
       {/* Grid for Stats Cards (4 columns on desktop) */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
-        {stats.map((stat, index) => (
-          <NeumorphicStatCard
-            key={index}
-            title={stat.title}
-            value={stat.value}
-            Icon={stat.Icon}
-            bgColorClass={stat.bgColorClass}
-            iconColorClass={stat.iconColorClass}
-          />
-        ))}
+        {loading ? (
+          // Loading state
+          Array.from({ length: 4 }).map((_, index) => (
+            <div key={index} className="p-8 text-center rounded-3xl bg-[#ecf0f3] shadow-[8px_8px_16px_#cbced1,-8px_-8px_16px_#ffffff] animate-pulse">
+              <div className="w-16 h-16 rounded-full bg-gray-300 mx-auto mb-6"></div>
+              <div className="h-10 w-20 bg-gray-300 mx-auto mb-2 rounded"></div>
+              <div className="h-4 w-32 bg-gray-300 mx-auto rounded"></div>
+            </div>
+          ))
+        ) : (
+          stats.map((stat, index) => (
+            <NeumorphicStatCard
+              key={index}
+              title={stat.title}
+              value={stat.value}
+              Icon={stat.Icon}
+              bgColorClass={stat.bgColorClass}
+              iconColorClass={stat.iconColorClass}
+            />
+          ))
+        )}
       </div>
 
       {/* Grid for Charts and other Cards (Main content below stats) */}

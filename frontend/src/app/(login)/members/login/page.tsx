@@ -55,17 +55,27 @@ export default function MemberLoginPage() {
 
   // Check if member is already logged in on page load
   useEffect(() => {
+    // Only run on client side
+    if (typeof window === 'undefined') return;
+    
     const checkAuth = async () => {
-      if (isAuthenticated()) {
-        // Verify token is still valid
-        const isValid = await verifyToken();
-        if (isValid) {
-          // Redirect to member dashboard if already logged in
-          router.push("/dashboard/members");
+      try {
+        if (isAuthenticated()) {
+          // Verify token is still valid
+          const isValid = await verifyToken();
+          if (isValid) {
+            // Redirect to member dashboard if already logged in
+            router.push("/member");
+          }
         }
+      } catch (error) {
+        // Ignore auth errors on login page
+        console.error("Auth check error:", error);
       }
     };
-    checkAuth();
+    
+    // Small delay to ensure client-side hydration is complete
+    setTimeout(checkAuth, 100);
   }, [router]);
 
   // Step 1: Continue with gym and email
@@ -86,8 +96,9 @@ export default function MemberLoginPage() {
 
       if (response.ok) {
         const data = await response.json();
-        // If password exists, needsPasswordSetup = false, otherwise true
-        setNeedsPasswordSetup(!data.has_password);
+        // Check if password setup is needed based on response
+        // If requires_password is false and first_time is true, needs password setup
+        setNeedsPasswordSetup(!data.requires_password && data.first_time === true);
         setStep(2);
       } else {
         const errorData = await response.json();
@@ -109,14 +120,21 @@ export default function MemberLoginPage() {
 
     try {
       if (needsPasswordSetup) {
-        // Setup password
+        // Step 2a: Setup password first
         if (password !== confirmPassword) {
           setError("Passwords do not match");
           setLoading(false);
           return;
         }
 
-        const response = await fetch(getApiUrl("api/auth/member/setup-password"), {
+        if (password.length < 6) {
+          setError("Password must be at least 6 characters long");
+          setLoading(false);
+          return;
+        }
+
+        // Setup password endpoint
+        const setupResponse = await fetch(getApiUrl("api/auth/member/setup-password"), {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -128,17 +146,45 @@ export default function MemberLoginPage() {
           }),
         });
 
-        if (response.ok) {
-          const data = await response.json();
-          localStorage.setItem("member_access_token", data.access_token);
-          router.push("/dashboard/members");
-        } else {
-          const errorData = await response.json();
-          setError(errorData.message || "Failed to setup password. Please try again.");
+        if (!setupResponse.ok) {
+          const errorData = await setupResponse.json().catch(() => ({ error: "Failed to setup password" }));
+          setError(errorData.error || errorData.message || "Failed to setup password. Please try again.");
+          setLoading(false);
+          return;
+        }
+
+        // Password setup successful, now login
+        const setupData = await setupResponse.json();
+        if (setupData.success) {
+          // Now proceed to login
+          const loginResponse = await fetch(getApiUrl("api/auth/member/login"), {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              gym_id: parseInt(gymId),
+              email,
+              password,
+            }),
+          });
+
+          if (loginResponse.ok) {
+            const loginData = await loginResponse.json();
+            if (loginData.access_token) {
+              localStorage.setItem("access_token", loginData.access_token);
+              router.push("/member");
+            } else {
+              setError("Login successful but no token received");
+            }
+          } else {
+            const errorData = await loginResponse.json().catch(() => ({ error: "Failed to login" }));
+            setError(errorData.error || errorData.message || "Password setup successful but login failed. Please try logging in again.");
+          }
         }
       } else {
-        // Login with password
-        const response = await fetch(getApiUrl("api/auth/member/login"), {
+        // Step 2b: Login with existing password
+        const loginResponse = await fetch(getApiUrl("api/auth/member/login"), {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -150,13 +196,17 @@ export default function MemberLoginPage() {
           }),
         });
 
-        if (response.ok) {
-          const data = await response.json();
-          localStorage.setItem("member_access_token", data.access_token);
-          router.push("/dashboard/members");
+        if (loginResponse.ok) {
+          const loginData = await loginResponse.json();
+          if (loginData.access_token) {
+            localStorage.setItem("access_token", loginData.access_token);
+            router.push("/member");
+          } else {
+            setError("Login successful but no token received");
+          }
         } else {
-          const errorData = await response.json();
-          setError(errorData.message || "Login failed. Please check your password and try again.");
+          const errorData = await loginResponse.json().catch(() => ({ error: "Failed to login" }));
+          setError(errorData.error || errorData.message || "Login failed. Please check your password and try again.");
         }
       }
     } catch (error) {

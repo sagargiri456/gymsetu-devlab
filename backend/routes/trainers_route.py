@@ -57,24 +57,41 @@ def get_trainer(current_gym):
 @owner_required
 def update_trainer(current_gym):
     data = request.get_json()
-    id = data["id"]
-    name = data["name"]
-    email = data["email"]
-    phone = data["phone"]
-    address = data["address"]
-    city = data["city"]
-    state = data["state"]
-    zip = data["zip"]
-    trainer = Trainer.query.filter_by(id=id, gym_id=current_gym.id).first()
+
+    # Support both trainer_id and id for compatibility
+    trainer_id = data.get("trainer_id") or data.get("id")
+    if not trainer_id:
+        return jsonify({"error": "Trainer ID is required"}), 400
+
+    trainer = Trainer.query.filter_by(id=trainer_id, gym_id=current_gym.id).first()
     if not trainer:
         return jsonify({"success": False, "message": "Trainer not found"}), 404
-    trainer.name = name
-    trainer.email = email
-    trainer.phone = phone
-    trainer.address = address
-    trainer.city = city
-    trainer.state = state
-    trainer.zip = zip
+
+    # Update only the fields that are provided in the request (partial update)
+    if "name" in data and data["name"]:
+        trainer.name = data["name"]
+    if "email" in data and data["email"]:
+        # Check if email is being changed and if it already exists
+        if data["email"] != trainer.email:
+            existing_trainer = Trainer.query.filter_by(
+                email=data["email"], gym_id=current_gym.id
+            ).first()
+            if existing_trainer:
+                return jsonify({"error": "Trainer with this email already exists"}), 409
+        trainer.email = data["email"]
+    if "phone" in data and data["phone"]:
+        trainer.phone = data["phone"]
+    if "address" in data and data["address"]:
+        trainer.address = data["address"]
+    if "city" in data and data["city"]:
+        trainer.city = data["city"]
+    if "dp_link" in data:
+        trainer.dp_link = data["dp_link"]  # dp_link can be None/empty
+    if "state" in data and data["state"]:
+        trainer.state = data["state"]
+    if "zip" in data and data["zip"]:
+        trainer.zip = data["zip"]
+
     db.session.commit()
     return jsonify({"success": True, "message": "Trainer updated successfully"}), 200
 

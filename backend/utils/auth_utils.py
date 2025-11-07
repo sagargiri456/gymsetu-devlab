@@ -131,3 +131,70 @@ def get_current_gym():
     """
     current_user_id = get_jwt_identity()
     return Gym.query.get(int(current_user_id))
+
+
+def member_required(f):
+    """
+    Decorator to require member authentication for accessing a route
+    Returns member_id and gym_id from token
+    """
+
+    @wraps(f)
+    @jwt_required()
+    def decorated_function(*args, **kwargs):
+        try:
+            from models.members import Member
+
+            # Get the current user identity from JWT token
+            current_user_identity = get_jwt_identity()
+            logger.info(f"Member identity extracted: {current_user_identity}")
+
+            if not current_user_identity:
+                logger.warning("JWT identity is None or empty")
+                return jsonify({"message": "Invalid token: missing identity"}), 401
+
+            # Parse token format: "member:member_id:gym_id"
+            if not isinstance(
+                current_user_identity, str
+            ) or not current_user_identity.startswith("member:"):
+                logger.warning(f"Invalid member token format: {current_user_identity}")
+                return jsonify({"message": "Invalid token: member token required"}), 401
+
+            # Extract member_id and gym_id
+            parts = current_user_identity.split(":")
+            if len(parts) != 3:
+                logger.warning(f"Invalid member token format: {current_user_identity}")
+                return jsonify({"message": "Invalid token format"}), 401
+
+            member_id = int(parts[1])
+            gym_id = int(parts[2])
+
+            # Get the member from database
+            member = Member.query.filter_by(id=member_id, gym_id=gym_id).first()
+
+            if not member:
+                logger.warning(
+                    f"Member not found: member_id={member_id}, gym_id={gym_id}"
+                )
+                return jsonify({"message": "Member not found"}), 404
+
+            if not member.is_active:
+                logger.warning(f"Member account is inactive: member_id={member_id}")
+                return jsonify({"message": "Member account is inactive"}), 403
+
+            logger.info(
+                f"Member authentication successful: member_id={member_id}, gym_id={gym_id}"
+            )
+            # Add member_id and gym_id to kwargs
+            kwargs["member_id"] = member_id
+            kwargs["gym_id"] = gym_id
+            kwargs["member"] = member
+            return f(*args, **kwargs)
+        except (ValueError, TypeError) as e:
+            logger.error(f"Token validation error: {str(e)}", exc_info=True)
+            return jsonify({"message": f"Invalid token: {str(e)}"}), 401
+        except Exception as e:
+            logger.error(f"Token validation error: {str(e)}", exc_info=True)
+            return jsonify({"message": f"Token validation error: {str(e)}"}), 401
+
+    return decorated_function

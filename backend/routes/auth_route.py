@@ -722,6 +722,9 @@ def delete_gym_profile():
     return jsonify({"message": "gym not found"}), 404
 
 
+# changing to make it eligible for push
+
+
 @auth_bp.route("/get_gym_by_id", methods=["GET"])
 def get_gym_by_id():
     from models.gym import Gym

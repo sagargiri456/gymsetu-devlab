@@ -261,6 +261,36 @@ export const isMember = (): boolean => {
 };
 
 /**
+ * Check if the current user is a trainer (by checking token format or role)
+ * @returns boolean indicating if user is a trainer
+ */
+export const isTrainer = (): boolean => {
+  if (typeof window === 'undefined') return false;
+  
+  // First check userData role
+  const userData = getUserData();
+  if (userData && userData.role === 'trainer') return true;
+  
+  // Then check token format
+  const token = getToken();
+  if (!token) return false;
+  
+  try {
+    // Decode JWT token (basic decode without verification)
+    const parts = token.split('.');
+    if (parts.length !== 3) return false;
+    
+    const payload = JSON.parse(atob(parts[1]));
+    const identity = payload.sub || payload.identity;
+    
+    // Check if identity starts with "trainer:"
+    return typeof identity === 'string' && identity.startsWith('trainer:');
+  } catch {
+    return false;
+  }
+};
+
+/**
  * Logout user by calling backend API and clearing local storage
  * @returns Promise that resolves when logout is complete
  */

@@ -17,9 +17,10 @@ import {
   MdRestaurant,
   MdTrendingUp,
   MdAccountCircle,
+  MdSchedule,
 } from 'react-icons/md';
 import { IconType } from 'react-icons';
-import { logoutUser, getCurrentUser, UserData, fetchGymProfile, GymProfile, isMember } from '@/lib/auth';
+import { logoutUser, getCurrentUser, UserData, fetchGymProfile, GymProfile, isMember, isTrainer } from '@/lib/auth';
 import { fetchMemberProfile } from '@/lib/memberApi';
 
 interface NavItem {
@@ -53,6 +54,20 @@ const memberNavConfig: NavItem[] = [
   { title: 'help', path: '/member/help', icon: MdHelpOutline },
 ];
 
+// Trainer navigation items
+const trainerNavConfig: NavItem[] = [
+  { title: 'dashboard', path: '/trainer', icon: MdDashboard },
+  { title: 'my members', path: '/trainer/members', icon: MdPeople },
+  { title: 'workout plans', path: '/trainer/workout-plans', icon: MdFitnessCenter },
+  { title: 'diet plans', path: '/trainer/diet-plans', icon: MdRestaurant },
+  { title: 'schedule', path: '/trainer/schedule', icon: MdSchedule },
+  { title: 'progress tracking', path: '/trainer/progress', icon: MdTrendingUp },
+  { title: 'contests', path: '/trainer/contests', icon: MdSportsKabaddi },
+  { title: 'my profile', path: '/trainer/profile', icon: MdAccountCircle },
+  { title: 'settings', path: '/trainer/settings', icon: MdSettings },
+  { title: 'help', path: '/trainer/help', icon: MdHelpOutline },
+];
+
 interface SidebarProps {
   isOpen?: boolean;
   onClose?: () => void;
@@ -65,6 +80,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen = true, onClose }) => {
   const [userData, setUserData] = React.useState<UserData | null>(null);
   const [gymProfile, setGymProfile] = React.useState<GymProfile | null>(null);
   const [isMemberUser, setIsMemberUser] = React.useState(false);
+  const [isTrainerUser, setIsTrainerUser] = React.useState(false);
   const [memberProfilePhoto, setMemberProfilePhoto] = React.useState<string | null>(null);
 
   // Get user data and gym profile on mount
@@ -73,9 +89,11 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen = true, onClose }) => {
       const user = await getCurrentUser();
       setUserData(user);
       
-      // Check if user is a member
+      // Check if user is a member or trainer
       const memberCheck = isMember();
+      const trainerCheck = isTrainer();
       setIsMemberUser(memberCheck);
+      setIsTrainerUser(trainerCheck);
       
       if (memberCheck) {
         // Fetch member profile to get profile photo
@@ -105,12 +123,14 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen = true, onClose }) => {
   }, []);
 
   // Get navigation config based on user type
-  const navConfig = isMemberUser ? memberNavConfig : ownerNavConfig;
+  const navConfig = isTrainerUser ? trainerNavConfig : (isMemberUser ? memberNavConfig : ownerNavConfig);
 
   const handleLogout = async () => {
     await logoutUser();
     if (isMemberUser) {
       router.push('/members/login');
+    } else if (isTrainerUser) {
+      router.push('/trainers/login');
     } else {
       router.push('/login');
     }
@@ -123,7 +143,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen = true, onClose }) => {
     const normalizedPath = path.replace(/\/$/, '');
     
     // For dashboard routes, check if it's exactly the path (with or without trailing slash)
-    if (normalizedPath === '/dashboard' || normalizedPath === '/member') {
+    if (normalizedPath === '/dashboard' || normalizedPath === '/member' || normalizedPath === '/trainer') {
       return normalizedPathname === normalizedPath || normalizedPathname === `${normalizedPath}/`;
     }
     

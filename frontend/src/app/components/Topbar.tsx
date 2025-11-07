@@ -11,7 +11,7 @@ import {
 } from "react-icons/md";
 import { FaGlobe } from "react-icons/fa";
 import Image from "next/image";
-import { logoutUser, getCurrentUser, UserData, fetchGymProfile, GymProfile, isMember } from "@/lib/auth";
+import { logoutUser, getCurrentUser, UserData, fetchGymProfile, GymProfile, isMember, isTrainer } from "@/lib/auth";
 import { fetchMemberProfile } from "@/lib/memberApi";
 
 // Styled Components for Dark Mode Toggle
@@ -206,6 +206,7 @@ const Topbar: React.FC<TopbarProps> = ({ onMenuClick }) => {
   const [gymProfile, setGymProfile] = useState<GymProfile | null>(null);
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
   const [isMemberUser, setIsMemberUser] = useState(false);
+  const [isTrainerUser, setIsTrainerUser] = useState(false);
   const [memberProfilePhoto, setMemberProfilePhoto] = useState<string | null>(null);
   const profileDropdownRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
@@ -216,9 +217,11 @@ const Topbar: React.FC<TopbarProps> = ({ onMenuClick }) => {
       const user = await getCurrentUser();
       setUserData(user);
       
-      // Check if user is a member
+      // Check if user is a member or trainer
       const memberCheck = isMember();
+      const trainerCheck = isTrainer();
       setIsMemberUser(memberCheck);
+      setIsTrainerUser(trainerCheck);
       
       if (memberCheck) {
         // Fetch member profile to get profile photo
@@ -232,7 +235,7 @@ const Topbar: React.FC<TopbarProps> = ({ onMenuClick }) => {
         } catch (error) {
           console.error('Failed to load member profile:', error);
         }
-      } else {
+      } else if (!trainerCheck) {
         // Fetch gym profile to get logo (only for owners)
         try {
           const profile = await fetchGymProfile();
@@ -257,8 +260,16 @@ const Topbar: React.FC<TopbarProps> = ({ onMenuClick }) => {
     return `data:image/svg+xml;base64,${btoa(svg)}`;
   };
 
-  const userName = isMemberUser ? (userData?.name || "Member") : (gymProfile?.name || userData?.name || "Admin");
-  const userEmail = isMemberUser ? (userData?.email || "member@example.com") : (gymProfile?.email || userData?.email || "admin@gmail.com");
+  const userName = isMemberUser 
+    ? (userData?.name || "Member") 
+    : isTrainerUser 
+    ? (userData?.name || "Trainer")
+    : (gymProfile?.name || userData?.name || "Admin");
+  const userEmail = isMemberUser 
+    ? (userData?.email || "member@example.com") 
+    : isTrainerUser
+    ? (userData?.email || "trainer@example.com")
+    : (gymProfile?.email || userData?.email || "admin@gmail.com");
   // Use gym logo if available (for owners), otherwise use default avatar
   const profileImageSrc = isMemberUser 
     ? (userData ? getProfileImageSrc(userData.name) : "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGNpcmNsZSBjeD0iMjAiIGN5PSIyMCIgcj0iMjAiIGZpbGw9IiM0RjQ2RTUiLz4KPHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxOCIgZm9udC13ZWlnaHQ9ImJvbGQiIGZpbGw9IndoaXRlIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBkeT0iLjNlbSI+TTwvdGV4dD4KPC9zdmc+")
@@ -285,6 +296,8 @@ const Topbar: React.FC<TopbarProps> = ({ onMenuClick }) => {
     await logoutUser();
     if (isMemberUser) {
       router.push('/members/login');
+    } else if (isTrainerUser) {
+      router.push('/trainers/login');
     } else {
       router.push('/login');
     }
@@ -324,7 +337,7 @@ const Topbar: React.FC<TopbarProps> = ({ onMenuClick }) => {
           <MdSearch size={20} className="text-gray-500 mr-2" />
           <input
             type="text"
-            placeholder={isMemberUser ? "Search..." : "Search user..."}
+            placeholder={isMemberUser ? "Search..." : isTrainerUser ? "Search members..." : "Search user..."}
             className="w-full text-sm text-gray-700 bg-transparent border-none focus:outline-none placeholder-gray-500"
           />
         </div>
@@ -441,7 +454,7 @@ const Topbar: React.FC<TopbarProps> = ({ onMenuClick }) => {
                   <button
                     onClick={() => {
                       setProfileDropdownOpen(false);
-                      router.push(isMemberUser ? '/member/profile' : '/dashboard/settings');
+                      router.push(isMemberUser ? '/member/profile' : isTrainerUser ? '/trainer/profile' : '/dashboard/settings');
                     }}
                     className="w-full flex items-center space-x-3 px-3 py-2 rounded-lg text-gray-700 hover:bg-[#ecf0f3] hover:shadow-[inset_4px_4px_8px_#cbced1,inset_-4px_-4px_8px_#ffffff] transition-all"
                   >

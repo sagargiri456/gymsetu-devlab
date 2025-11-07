@@ -580,39 +580,77 @@ def change_password():
 @auth_bp.route("/me", methods=["GET"])
 @jwt_required()
 def get_current_user():
-    """Get current user profile from JWT token"""
+    """Get current user profile from JWT token - handles both owner and member tokens"""
     from models.gym import Gym
+    from models.members import Member
 
     try:
-        current_user_id = get_jwt_identity()
+        current_user_identity = get_jwt_identity()
 
-        if not current_user_id:
+        if not current_user_identity:
             return jsonify({"message": "Invalid token: missing identity"}), 401
 
-        # Convert to int if it's a string
-        if isinstance(current_user_id, str):
-            current_user_id = int(current_user_id)
+        # Check if it's a member token (format: "member:member_id:gym_id")
+        if isinstance(current_user_identity, str) and current_user_identity.startswith(
+            "member:"
+        ):
+            # Parse member token
+            parts = current_user_identity.split(":")
+            if len(parts) != 3:
+                return jsonify({"message": "Invalid member token format"}), 401
 
-        # Get the gym/user from database
-        gym = Gym.query.get(current_user_id)
+            member_id = int(parts[1])
+            gym_id = int(parts[2])
 
-        if not gym:
-            return jsonify({"message": "User not found"}), 404
+            # Get the member from database
+            member = Member.query.filter_by(id=member_id, gym_id=gym_id).first()
 
-        return (
-            jsonify(
-                {
-                    "success": True,
-                    "user": {
-                        "id": gym.id,
-                        "name": gym.name,
-                        "email": gym.email,
-                        "role": gym.role,
-                    },
-                }
-            ),
-            200,
-        )
+            if not member:
+                return jsonify({"message": "Member not found"}), 404
+
+            return (
+                jsonify(
+                    {
+                        "success": True,
+                        "user": {
+                            "id": member.id,
+                            "name": member.name,
+                            "email": member.email,
+                            "role": "member",
+                            "gym_id": member.gym_id,
+                        },
+                    }
+                ),
+                200,
+            )
+        else:
+            # Handle owner/gym token (integer ID)
+            current_user_id = current_user_identity
+
+            # Convert to int if it's a string
+            if isinstance(current_user_id, str):
+                current_user_id = int(current_user_id)
+
+            # Get the gym/user from database
+            gym = Gym.query.get(current_user_id)
+
+            if not gym:
+                return jsonify({"message": "User not found"}), 404
+
+            return (
+                jsonify(
+                    {
+                        "success": True,
+                        "user": {
+                            "id": gym.id,
+                            "name": gym.name,
+                            "email": gym.email,
+                            "role": gym.role,
+                        },
+                    }
+                ),
+                200,
+            )
     except (ValueError, TypeError) as e:
         return jsonify({"message": f"Invalid token: {str(e)}"}), 401
     except Exception as e:

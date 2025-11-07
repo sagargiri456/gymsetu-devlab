@@ -11,7 +11,7 @@ import {
 } from "react-icons/md";
 import { FaGlobe } from "react-icons/fa";
 import Image from "next/image";
-import { logoutUser, getCurrentUser, UserData, fetchGymProfile, GymProfile } from "@/lib/auth";
+import { logoutUser, getCurrentUser, UserData, fetchGymProfile, GymProfile, isMember } from "@/lib/auth";
 
 // Styled Components for Dark Mode Toggle
 const StyledWrapper = styled.div`
@@ -196,7 +196,7 @@ const DarkModeToggle: React.FC = () => {
 };
 
 interface TopbarProps {
-  onMenuClick: () => void;
+  onMenuClick?: () => void;
 }
 
 const Topbar: React.FC<TopbarProps> = ({ onMenuClick }) => {
@@ -204,6 +204,7 @@ const Topbar: React.FC<TopbarProps> = ({ onMenuClick }) => {
   const [userData, setUserData] = useState<UserData | null>(null);
   const [gymProfile, setGymProfile] = useState<GymProfile | null>(null);
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
+  const [isMemberUser, setIsMemberUser] = useState(false);
   const profileDropdownRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
 
@@ -213,14 +214,20 @@ const Topbar: React.FC<TopbarProps> = ({ onMenuClick }) => {
       const user = await getCurrentUser();
       setUserData(user);
       
-      // Fetch gym profile to get logo
-      try {
-        const profile = await fetchGymProfile();
-        if (profile) {
-          setGymProfile(profile);
+      // Check if user is a member
+      const memberCheck = isMember();
+      setIsMemberUser(memberCheck);
+      
+      // Fetch gym profile to get logo (only for owners)
+      if (!memberCheck) {
+        try {
+          const profile = await fetchGymProfile();
+          if (profile) {
+            setGymProfile(profile);
+          }
+        } catch (error) {
+          console.error('Failed to load gym profile:', error);
         }
-      } catch (error) {
-        console.error('Failed to load gym profile:', error);
       }
     };
     loadUserData();
@@ -236,10 +243,12 @@ const Topbar: React.FC<TopbarProps> = ({ onMenuClick }) => {
     return `data:image/svg+xml;base64,${btoa(svg)}`;
   };
 
-  const adminName = gymProfile?.name || userData?.name || "Admin";
-  const adminEmail = gymProfile?.email || userData?.email || "admin@gmail.com";
-  // Use gym logo if available, otherwise use default avatar
-  const profileImageSrc = gymProfile?.logo_link || (userData ? getProfileImageSrc(userData.name) : "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGNpcmNsZSBjeD0iMjAiIGN5PSIyMCIgcj0iMjAiIGZpbGw9IiM0RjQ2RTUiLz4KPHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxOCIgZm9udC13ZWlnaHQ9ImJvbGQiIGZpbGw9IndoaXRlIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBkeT0iLjNlbSI+QTwvdGV4dD4KPC9zdmc+");
+  const userName = isMemberUser ? (userData?.name || "Member") : (gymProfile?.name || userData?.name || "Admin");
+  const userEmail = isMemberUser ? (userData?.email || "member@example.com") : (gymProfile?.email || userData?.email || "admin@gmail.com");
+  // Use gym logo if available (for owners), otherwise use default avatar
+  const profileImageSrc = isMemberUser 
+    ? (userData ? getProfileImageSrc(userData.name) : "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGNpcmNsZSBjeD0iMjAiIGN5PSIyMCIgcj0iMjAiIGZpbGw9IiM0RjQ2RTUiLz4KPHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxOCIgZm9udC13ZWlnaHQ9ImJvbGQiIGZpbGw9IndoaXRlIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBkeT0iLjNlbSI+TTwvdGV4dD4KPC9zdmc+")
+    : (gymProfile?.logo_link || (userData ? getProfileImageSrc(userData.name) : "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGNpcmNsZSBjeD0iMjAiIGN5PSIyMCIgcj0iMjAiIGZpbGw9IiM0RjQ2RTUiLz4KPHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxOCIgZm9udC13ZWlnaHQ9ImJvbGQiIGZpbGw9IndoaXRlIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBkeT0iLjNlbSI+QTwvdGV4dD4KPC9zdmc+"));
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -260,7 +269,11 @@ const Topbar: React.FC<TopbarProps> = ({ onMenuClick }) => {
 
   const handleLogout = async () => {
     await logoutUser();
-    router.push('/login');
+    if (isMemberUser) {
+      router.push('/members/login');
+    } else {
+      router.push('/login');
+    }
   };
 
   const handleNotificationClick = () => {
@@ -276,22 +289,28 @@ const Topbar: React.FC<TopbarProps> = ({ onMenuClick }) => {
   };
 
   return (
-    <header className="fixed top-0 right-0 z-30 w-full lg:w-[calc(100%-256px)] transition-all duration-300 ease-in-out">
+    <header className={`fixed top-0 right-0 z-30 transition-all duration-300 ease-in-out ${
+      onMenuClick ? 'w-full lg:w-[calc(100%-256px)]' : 'w-full lg:w-[calc(100%-256px)]'
+    }`}>
       <div className="flex items-center min-h-16 px-4 md:px-6 lg:min-h-24 lg:px-10 bg-[#ecf0f3] shadow-[8px_8px_16px_#cbced1,-8px_-8px_16px_#ffffff] rounded-bl-2xl">
         {/* Menu Button */}
-        <button 
-          onClick={onMenuClick}
-          className="lg:hidden text-gray-700 p-3 rounded-full bg-[#ecf0f3] shadow-[4px_4px_8px_#cbced1,-4px_-4px_8px_#ffffff] hover:shadow-[inset_4px_4px_8px_#cbced1,inset_-4px_-4px_8px_#ffffff] transition-all"
-        >
-          <MdMenu size={22} />
-        </button>
+        {onMenuClick && (
+          <button 
+            onClick={onMenuClick}
+            className="lg:hidden text-gray-700 p-3 rounded-full bg-[#ecf0f3] shadow-[4px_4px_8px_#cbced1,-4px_-4px_8px_#ffffff] hover:shadow-[inset_4px_4px_8px_#cbced1,inset_-4px_-4px_8px_#ffffff] transition-all"
+          >
+            <MdMenu size={22} />
+          </button>
+        )}
 
         {/* Search Bar */}
-        <div className="relative flex items-center w-60 md:w-80 ml-4 px-3 py-2 rounded-full bg-[#ecf0f3] shadow-[inset_5px_5px_10px_#cbced1,inset_-5px_-5px_10px_#ffffff] transition-all duration-200">
+        <div className={`relative flex items-center w-60 md:w-80 px-3 py-2 rounded-full bg-[#ecf0f3] shadow-[inset_5px_5px_10px_#cbced1,inset_-5px_-5px_10px_#ffffff] transition-all duration-200 ${
+          onMenuClick ? 'ml-4' : ''
+        }`}>
           <MdSearch size={20} className="text-gray-500 mr-2" />
           <input
             type="text"
-            placeholder="Search user..."
+            placeholder={isMemberUser ? "Search..." : "Search user..."}
             className="w-full text-sm text-gray-700 bg-transparent border-none focus:outline-none placeholder-gray-500"
           />
         </div>
@@ -333,10 +352,10 @@ const Topbar: React.FC<TopbarProps> = ({ onMenuClick }) => {
               className="p-[3px] rounded-full w-10 h-10 bg-[#ecf0f3] shadow-[4px_4px_8px_#cbced1,-4px_-4px_8px_#ffffff] hover:shadow-[inset_4px_4px_8px_#cbced1,inset_-4px_-4px_8px_#ffffff] transition-all overflow-hidden"
               title="Profile Menu"
             >
-              {gymProfile?.logo_link ? (
+              {!isMemberUser && gymProfile?.logo_link ? (
                 <img
                   src={gymProfile.logo_link}
-                  alt={adminName}
+                  alt={userName}
                   className="object-cover w-full h-full rounded-full"
                   onError={(e) => {
                     // Fallback to default avatar if image fails to load
@@ -346,7 +365,7 @@ const Topbar: React.FC<TopbarProps> = ({ onMenuClick }) => {
               ) : (
                 <Image
                   src={profileImageSrc}
-                  alt={adminName}
+                  alt={userName}
                   width={40}
                   height={40}
                   className="object-cover w-full h-full rounded-full"
@@ -359,10 +378,10 @@ const Topbar: React.FC<TopbarProps> = ({ onMenuClick }) => {
               <div className="absolute right-0 mt-2 w-48 rounded-xl bg-[#ecf0f3] shadow-[8px_8px_16px_#cbced1,-8px_-8px_16px_#ffffff] border-none overflow-hidden z-50">
                 <div className="p-3 border-b border-gray-300 border-opacity-30">
                   <div className="flex items-center space-x-3">
-                    {gymProfile?.logo_link ? (
+                    {!isMemberUser && gymProfile?.logo_link ? (
                       <img
                         src={gymProfile.logo_link}
-                        alt={adminName}
+                        alt={userName}
                         className="w-8 h-8 object-cover rounded-full"
                         onError={(e) => {
                           // Fallback to default avatar if image fails to load
@@ -372,15 +391,15 @@ const Topbar: React.FC<TopbarProps> = ({ onMenuClick }) => {
                     ) : (
                       <Image
                         src={profileImageSrc}
-                        alt={adminName}
+                        alt={userName}
                         width={32}
                         height={32}
                         className="object-cover rounded-full"
                       />
                     )}
                     <div>
-                      <p className="text-sm font-semibold text-gray-800">{adminName}</p>
-                      <p className="text-xs text-gray-600">{adminEmail}</p>
+                      <p className="text-sm font-semibold text-gray-800">{userName}</p>
+                      <p className="text-xs text-gray-600">{userEmail}</p>
                     </div>
                   </div>
                 </div>
@@ -388,7 +407,7 @@ const Topbar: React.FC<TopbarProps> = ({ onMenuClick }) => {
                   <button
                     onClick={() => {
                       setProfileDropdownOpen(false);
-                      router.push('/dashboard/settings');
+                      router.push(isMemberUser ? '/member/profile' : '/dashboard/settings');
                     }}
                     className="w-full flex items-center space-x-3 px-3 py-2 rounded-lg text-gray-700 hover:bg-[#ecf0f3] hover:shadow-[inset_4px_4px_8px_#cbced1,inset_-4px_-4px_8px_#ffffff] transition-all"
                   >

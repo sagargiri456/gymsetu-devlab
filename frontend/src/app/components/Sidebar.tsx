@@ -41,23 +41,23 @@ const ownerNavConfig: NavItem[] = [
 
 // Member navigation items
 const memberNavConfig: NavItem[] = [
-  { title: 'dashboard', path: '/dashboard', icon: MdDashboard },
-  { title: 'workout plan', path: '/dashboard/workout-plan', icon: MdFitnessCenter },
-  { title: 'diet plan', path: '/dashboard/diet-plan', icon: MdRestaurant },
-  { title: 'my trainer', path: '/dashboard/my-trainer', icon: MdOutlineSportsGymnastics },
-  { title: 'contest', path: '/dashboard/contest', icon: MdSportsKabaddi },
-  { title: 'my progress', path: '/dashboard/progress', icon: MdTrendingUp },
-  { title: 'my profile', path: '/dashboard/profile', icon: MdAccountCircle },
-  { title: 'settings', path: '/dashboard/settings', icon: MdSettings },
-  { title: 'help', path: '/dashboard/help', icon: MdHelpOutline },
+  { title: 'dashboard', path: '/member', icon: MdDashboard },
+  { title: 'workout plan', path: '/member/workout-plan', icon: MdFitnessCenter },
+  { title: 'diet plan', path: '/member/diet-plan', icon: MdRestaurant },
+  { title: 'my trainer', path: '/member/my-trainer', icon: MdOutlineSportsGymnastics },
+  { title: 'contests', path: '/member/contests', icon: MdSportsKabaddi },
+  { title: 'my progress', path: '/member/progress', icon: MdTrendingUp },
+  { title: 'my profile', path: '/member/profile', icon: MdAccountCircle },
+  { title: 'settings', path: '/member/settings', icon: MdSettings },
+  { title: 'help', path: '/member/help', icon: MdHelpOutline },
 ];
 
 interface SidebarProps {
-  isOpen: boolean;
-  onClose: () => void;
+  isOpen?: boolean;
+  onClose?: () => void;
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
+const Sidebar: React.FC<SidebarProps> = ({ isOpen = true, onClose }) => {
   const logoSrc = '/images/logo.svg';
   const router = useRouter();
   const pathname = usePathname();
@@ -94,7 +94,11 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
 
   const handleLogout = async () => {
     await logoutUser();
-    router.push('/login');
+    if (isMemberUser) {
+      router.push('/members/login');
+    } else {
+      router.push('/login');
+    }
   };
 
   // Check if a nav item is active based on current pathname
@@ -103,9 +107,9 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
     const normalizedPathname = pathname?.replace(/\/$/, '') || '';
     const normalizedPath = path.replace(/\/$/, '');
     
-    // For dashboard, check if it's exactly /dashboard (with or without trailing slash)
-    if (normalizedPath === '/dashboard') {
-      return normalizedPathname === '/dashboard' || normalizedPathname === '/dashboard/';
+    // For dashboard routes, check if it's exactly the path (with or without trailing slash)
+    if (normalizedPath === '/dashboard' || normalizedPath === '/member') {
+      return normalizedPathname === normalizedPath || normalizedPathname === `${normalizedPath}/`;
     }
     
     // For other paths, check if pathname starts with the path
@@ -115,7 +119,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
   return (
     <>
       {/* Mobile Overlay */}
-      {isOpen && (
+      {onClose !== undefined && isOpen && (
         <div 
           className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden"
           onClick={onClose}
@@ -123,18 +127,22 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
       )}
       
       {/* Sidebar */}
-      <div className={`fixed top-0 left-0 z-50 flex flex-col h-screen w-64 bg-[#ecf0f3] shadow-[8px_8px_16px_#cbced1,-8px_-8px_16px_#ffffff] border-none overflow-hidden transform transition-transform duration-300 ease-in-out ${
-        isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
+      <div className={`fixed top-0 left-0 z-50 flex flex-col h-screen w-64 bg-[#ecf0f3] shadow-[8px_8px_16px_#cbced1,-8px_-8px_16px_#ffffff] border-none overflow-hidden ${
+        onClose !== undefined ? 'transform transition-transform duration-300 ease-in-out' : ''
+      } ${
+        onClose !== undefined ? (isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0') : 'translate-x-0'
       }`}>
         {/* Mobile Close Button */}
-        <div className="flex justify-end p-4 lg:hidden">
-          <button
-            onClick={onClose}
-            className="p-2 rounded-full bg-[#ecf0f3] shadow-[4px_4px_8px_#cbced1,-4px_-4px_8px_#ffffff] hover:shadow-[inset_4px_4px_8px_#cbced1,inset_-4px_-4px_8px_#ffffff] transition-all"
-          >
-            <MdClose size={20} className="text-gray-700" />
-          </button>
-        </div>
+        {onClose !== undefined && (
+          <div className="flex justify-end p-4 lg:hidden">
+            <button
+              onClick={onClose}
+              className="p-2 rounded-full bg-[#ecf0f3] shadow-[4px_4px_8px_#cbced1,-4px_-4px_8px_#ffffff] hover:shadow-[inset_4px_4px_8px_#cbced1,inset_-4px_-4px_8px_#ffffff] transition-all"
+            >
+              <MdClose size={20} className="text-gray-700" />
+            </button>
+          </div>
+        )}
 
         {/* Logo Section */}
         <div className="flex items-center justify-center p-6 shadow-[inset_4px_4px_8px_#cbced1,inset_-4px_-4px_8px_#ffffff]">
@@ -217,7 +225,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
                 <Link
                   href={item.path}
                   className={`${baseClasses} ${active ? activeClasses : inactiveClasses}`}
-                  onClick={onClose}
+                  onClick={() => onClose && onClose()}
                 >
                   <div className="w-7 h-7 flex items-center justify-center mr-4 rounded-full bg-[#ecf0f3] shadow-[inset_2px_2px_4px_#cbced1,inset_-2px_-2px_4px_#ffffff]">
                     <Icon size={18} />

@@ -1,107 +1,126 @@
 // app/member/diet-plan/page.tsx
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { DietPlan, Meal } from '@/types/member';
+import { fetchDietPlan, markMealComplete } from '@/lib/memberApi';
 
 const DietPlanPage: React.FC = () => {
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [dietPlan, setDietPlan] = useState<DietPlan | null>(null);
 
-  // Mock diet plan data
-  const dietPlan: DietPlan = {
-    name: 'Balanced Nutrition Plan',
-    duration: '12 weeks',
-    calories: 2200,
-    protein: 165,
-    carbs: 275,
-    fats: 73,
-    meals: [
-      {
-        id: '1',
-        name: 'Breakfast',
-        time: '08:00 AM',
-        calories: 550,
-        protein: 35,
-        carbs: 65,
-        fats: 18,
-        foods: ['Oatmeal with berries', 'Greek yogurt', 'Almonds'],
-        completed: true
-      },
-      {
-        id: '2',
-        name: 'Mid-Morning Snack',
-        time: '11:00 AM',
-        calories: 200,
-        protein: 15,
-        carbs: 25,
-        fats: 8,
-        foods: ['Apple', 'Peanut butter'],
-        completed: false
-      },
-      {
-        id: '3',
-        name: 'Lunch',
-        time: '01:00 PM',
-        calories: 650,
-        protein: 50,
-        carbs: 75,
-        fats: 22,
-        foods: ['Grilled chicken breast', 'Brown rice', 'Steamed vegetables', 'Salad'],
-        completed: false
-      },
-      {
-        id: '4',
-        name: 'Afternoon Snack',
-        time: '04:00 PM',
-        calories: 250,
-        protein: 20,
-        carbs: 30,
-        fats: 10,
-        foods: ['Protein shake', 'Banana'],
-        completed: false
-      },
-      {
-        id: '5',
-        name: 'Dinner',
-        time: '07:00 PM',
-        calories: 550,
-        protein: 45,
-        carbs: 80,
-        fats: 15,
-        foods: ['Salmon fillet', 'Sweet potato', 'Broccoli', 'Quinoa'],
-        completed: false
+  useEffect(() => {
+    const loadDietPlan = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const data = await fetchDietPlan();
+        
+        // Transform API response to match our types
+        if (data.dietPlan) {
+          setDietPlan(data.dietPlan);
+        } else if (data) {
+          setDietPlan(data);
+        }
+      } catch (err) {
+        console.error('Error loading diet plan:', err);
+        setError(err instanceof Error ? err.message : 'Failed to load diet plan');
+        
+        // Fallback to default data if API fails
+        setDietPlan({
+          name: 'No Diet Plan',
+          duration: 'N/A',
+          calories: 0,
+          protein: 0,
+          carbs: 0,
+          fats: 0,
+          meals: []
+        });
+      } finally {
+        setLoading(false);
       }
-    ]
+    };
+
+    loadDietPlan();
+  }, []);
+
+  const handleMarkMealComplete = async (mealId: string) => {
+    try {
+      await markMealComplete(mealId);
+      // Reload diet plan to get updated data
+      const data = await fetchDietPlan();
+      if (data.dietPlan) {
+        setDietPlan(data.dietPlan);
+      } else if (data) {
+        setDietPlan(data);
+      }
+    } catch (err) {
+      console.error('Error marking meal complete:', err);
+      alert('Failed to mark meal as complete');
+    }
   };
 
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-[#67d18a] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading diet plan...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error && !dietPlan) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <p className="text-red-600 mb-4">Error: {error}</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="px-4 py-2 bg-[#ecf0f3] shadow-[5px_5px_10px_#cbced1,-5px_-5px_10px_#ffffff] hover:shadow-[inset_5px_5px_10px_#cbced1,inset_-5px_-5px_10px_#ffffff] text-blue-700 rounded-lg transition-all"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (!dietPlan) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <p className="text-gray-600">No diet plan available</p>
+      </div>
+    );
+  }
+
   const totalCompleted = dietPlan.meals.filter(m => m.completed).length;
-  const progress = (totalCompleted / dietPlan.meals.length) * 100;
+  const progress = dietPlan.meals.length > 0 ? (totalCompleted / dietPlan.meals.length) * 100 : 0;
 
   return (
     <div className="space-y-6">
       {/* Diet Plan Header */}
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-              {dietPlan.name}
-            </h1>
-            <p className="text-gray-600 dark:text-gray-400 mt-1">
-              {dietPlan.duration} • {dietPlan.calories} calories/day
-            </p>
-          </div>
-          <div className="text-right">
-            <div className="text-sm text-gray-500 dark:text-gray-400">Today&apos;s Progress</div>
-            <div className="flex items-center space-x-2">
-              <div className="w-32 bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-                <div
-                  className="bg-green-500 h-2 rounded-full"
-                  style={{ width: `${progress}%` }}
-                ></div>
-              </div>
-              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                {Math.round(progress)}%
-              </span>
+      <div className="mb-8 mt-4 lg:mt-6">
+        <h4 className="text-3xl font-bold text-gray-800 drop-shadow-[1px_1px_0px_#fff]">
+          {dietPlan.name}
+        </h4>
+        <p className="text-gray-600 opacity-70 mt-2">
+          {dietPlan.duration} • {dietPlan.calories} calories/day
+        </p>
+        <div className="flex items-center space-x-4 mt-4">
+          <div className="text-sm text-gray-600 opacity-70">Today&apos;s Progress</div>
+          <div className="flex items-center space-x-2">
+            <div className="w-32 bg-[#ecf0f3] rounded-full h-3" style={{boxShadow: 'inset 3px 3px 6px #cbced1, inset -3px -3px 6px #ffffff'}}>
+              <div
+                className="bg-green-500 h-3 rounded-full"
+                style={{ width: `${progress}%` }}
+              ></div>
             </div>
+            <span className="text-sm font-medium text-gray-800">
+              {Math.round(progress)}%
+            </span>
           </div>
         </div>
       </div>
@@ -109,52 +128,53 @@ const DietPlanPage: React.FC = () => {
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
         {/* Daily Macros */}
         <div className="lg:col-span-1 space-y-4">
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6">
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-              Daily Macros
-            </h2>
+          <div className="rounded-3xl bg-[#ecf0f3] shadow-[8px_8px_16px_#cbced1,-8px_-8px_16px_#ffffff] overflow-hidden p-6">
+            <div className="p-0 mb-4">
+              <h6 className="text-lg font-bold text-gray-800">Daily Macros</h6>
+              <p className="text-sm text-gray-600 opacity-70">Nutrition breakdown</p>
+            </div>
             <div className="space-y-4">
               <div>
                 <div className="flex justify-between mb-2">
-                  <span className="text-sm text-gray-600 dark:text-gray-400">Calories</span>
-                  <span className="text-sm font-medium text-gray-900 dark:text-white">
+                  <span className="text-sm text-gray-600 opacity-70">Calories</span>
+                  <span className="text-sm font-medium text-gray-800">
                     {dietPlan.calories} kcal
                   </span>
                 </div>
-                <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                <div className="w-full bg-[#ecf0f3] rounded-full h-2" style={{boxShadow: 'inset 2px 2px 4px #cbced1, inset -2px -2px 4px #ffffff'}}>
                   <div className="bg-blue-500 h-2 rounded-full" style={{ width: '75%' }}></div>
                 </div>
               </div>
               <div>
                 <div className="flex justify-between mb-2">
-                  <span className="text-sm text-gray-600 dark:text-gray-400">Protein</span>
-                  <span className="text-sm font-medium text-gray-900 dark:text-white">
+                  <span className="text-sm text-gray-600 opacity-70">Protein</span>
+                  <span className="text-sm font-medium text-gray-800">
                     {dietPlan.protein}g
                   </span>
                 </div>
-                <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                <div className="w-full bg-[#ecf0f3] rounded-full h-2" style={{boxShadow: 'inset 2px 2px 4px #cbced1, inset -2px -2px 4px #ffffff'}}>
                   <div className="bg-red-500 h-2 rounded-full" style={{ width: '80%' }}></div>
                 </div>
               </div>
               <div>
                 <div className="flex justify-between mb-2">
-                  <span className="text-sm text-gray-600 dark:text-gray-400">Carbs</span>
-                  <span className="text-sm font-medium text-gray-900 dark:text-white">
+                  <span className="text-sm text-gray-600 opacity-70">Carbs</span>
+                  <span className="text-sm font-medium text-gray-800">
                     {dietPlan.carbs}g
                   </span>
                 </div>
-                <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                <div className="w-full bg-[#ecf0f3] rounded-full h-2" style={{boxShadow: 'inset 2px 2px 4px #cbced1, inset -2px -2px 4px #ffffff'}}>
                   <div className="bg-yellow-500 h-2 rounded-full" style={{ width: '70%' }}></div>
                 </div>
               </div>
               <div>
                 <div className="flex justify-between mb-2">
-                  <span className="text-sm text-gray-600 dark:text-gray-400">Fats</span>
-                  <span className="text-sm font-medium text-gray-900 dark:text-white">
+                  <span className="text-sm text-gray-600 opacity-70">Fats</span>
+                  <span className="text-sm font-medium text-gray-800">
                     {dietPlan.fats}g
                   </span>
                 </div>
-                <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                <div className="w-full bg-[#ecf0f3] rounded-full h-2" style={{boxShadow: 'inset 2px 2px 4px #cbced1, inset -2px -2px 4px #ffffff'}}>
                   <div className="bg-purple-500 h-2 rounded-full" style={{ width: '65%' }}></div>
                 </div>
               </div>
@@ -164,18 +184,19 @@ const DietPlanPage: React.FC = () => {
 
         {/* Meals List */}
         <div className="lg:col-span-3">
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6">
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-              Today&apos;s Meals
-            </h2>
+          <div className="rounded-3xl bg-[#ecf0f3] shadow-[8px_8px_16px_#cbced1,-8px_-8px_16px_#ffffff] overflow-hidden p-6">
+            <div className="p-0 mb-4">
+              <h6 className="text-lg font-bold text-gray-800">Today&apos;s Meals</h6>
+              <p className="text-sm text-gray-600 opacity-70">Your meal schedule</p>
+            </div>
             <div className="space-y-4">
               {dietPlan.meals.map((meal: Meal) => (
                 <div
                   key={meal.id}
-                  className={`border rounded-lg p-4 transition-colors ${
+                  className={`rounded-xl p-4 transition-all ${
                     meal.completed
-                      ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800'
-                      : 'bg-gray-50 dark:bg-gray-700/50 border-gray-200 dark:border-gray-700'
+                      ? 'bg-[#ecf0f3] shadow-[inset_4px_4px_8px_#cbced1,inset_-4px_-4px_8px_#ffffff] border-l-4 border-green-500'
+                      : 'bg-[#ecf0f3] shadow-[5px_5px_10px_#cbced1,-5px_-5px_10px_#ffffff]'
                   }`}
                 >
                   <div className="flex items-center justify-between mb-3">
@@ -188,28 +209,29 @@ const DietPlanPage: React.FC = () => {
                         <span className="material-icons text-sm">restaurant</span>
                       </div>
                       <div>
-                        <h3 className="font-medium text-gray-900 dark:text-white">
+                        <h3 className="font-medium text-gray-800">
                           {meal.name}
                         </h3>
-                        <p className="text-sm text-gray-500 dark:text-gray-400">
+                        <p className="text-sm text-gray-600 opacity-70">
                           {meal.time}
                         </p>
                       </div>
                     </div>
                     <div className="flex items-center space-x-4">
                       <div className="text-right text-sm">
-                        <div className="text-gray-600 dark:text-gray-400">
+                        <div className="text-gray-800">
                           {meal.calories} kcal
                         </div>
-                        <div className="text-gray-500 dark:text-gray-500 text-xs">
+                        <div className="text-gray-600 opacity-70 text-xs">
                           P: {meal.protein}g • C: {meal.carbs}g • F: {meal.fats}g
                         </div>
                       </div>
                       <button
-                        className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                        onClick={() => !meal.completed && handleMarkMealComplete(meal.id)}
+                        className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
                           meal.completed
-                            ? 'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400'
-                            : 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 hover:bg-blue-200 dark:hover:bg-blue-900/50'
+                            ? 'bg-[#ecf0f3] shadow-[inset_5px_5px_10px_#cbced1,inset_-5px_-5px_10px_#ffffff] text-green-700'
+                            : 'bg-[#ecf0f3] shadow-[5px_5px_10px_#cbced1,-5px_-5px_10px_#ffffff] hover:shadow-[inset_5px_5px_10px_#cbced1,inset_-5px_-5px_10px_#ffffff] text-blue-700'
                         }`}
                       >
                         {meal.completed ? (
@@ -221,12 +243,12 @@ const DietPlanPage: React.FC = () => {
                     </div>
                   </div>
                   <div className="mt-3">
-                    <div className="text-sm text-gray-600 dark:text-gray-400 mb-2">Food Items:</div>
+                    <div className="text-sm text-gray-600 opacity-70 mb-2">Food Items:</div>
                     <div className="flex flex-wrap gap-2">
                       {meal.foods.map((food, index) => (
                         <span
                           key={index}
-                          className="px-3 py-1 bg-white dark:bg-gray-800 rounded-full text-sm text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700"
+                          className="px-3 py-1 bg-[#ecf0f3] shadow-[3px_3px_6px_#cbced1,-3px_-3px_6px_#ffffff] rounded-full text-sm text-gray-800"
                         >
                           {food}
                         </span>

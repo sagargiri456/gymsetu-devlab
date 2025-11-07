@@ -1,23 +1,55 @@
 // components/member/dashboard/TodaysSchedule.tsx
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+import { 
+  MdFitnessCenter, 
+  MdPerson, 
+  MdRestaurant, 
+  MdEvent, 
+  MdCheckCircle, 
+  MdEventBusy 
+} from 'react-icons/md';
+import { IconType } from 'react-icons';
 import { ScheduleItem } from '@/types/member';
+import { fetchTodaysSchedule } from '@/lib/memberApi';
 
 const TodaysSchedule: React.FC = () => {
-  // Mock schedule data
-  const schedule: ScheduleItem[] = [
-    { type: 'workout', title: 'Chest & Triceps', time: '09:00 AM', duration: '60 min', completed: false },
-    { type: 'trainer', title: 'Session with John', time: '02:00 PM', duration: '30 min', completed: false },
-    { type: 'diet', title: 'Diet Consultation', time: '04:00 PM', duration: '45 min', completed: false }
-  ];
+  const [loading, setLoading] = useState(true);
+  const [schedule, setSchedule] = useState<ScheduleItem[]>([]);
 
-  const getTypeIcon = (type: string) => {
+  useEffect(() => {
+    const loadSchedule = async () => {
+      try {
+        setLoading(true);
+        const data = await fetchTodaysSchedule();
+        
+        // Transform API response to match our types
+        if (data.schedule) {
+          setSchedule(data.schedule);
+        } else if (Array.isArray(data)) {
+          setSchedule(data);
+        } else {
+          setSchedule([]);
+        }
+      } catch (err) {
+        console.error('Error loading schedule:', err);
+        // Fallback to empty schedule if API fails
+        setSchedule([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadSchedule();
+  }, []);
+
+  const getTypeIcon = (type: string): IconType => {
     switch (type) {
-      case 'workout': return 'fitness_center';
-      case 'trainer': return 'person';
-      case 'diet': return 'restaurant';
-      default: return 'event';
+      case 'workout': return MdFitnessCenter;
+      case 'trainer': return MdPerson;
+      case 'diet': return MdRestaurant;
+      default: return MdEvent;
     }
   };
 
@@ -31,44 +63,44 @@ const TodaysSchedule: React.FC = () => {
   };
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6">
-      <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-        Today&apos;s Schedule
-      </h2>
+    <div className="rounded-3xl bg-[#ecf0f3] shadow-[8px_8px_16px_#cbced1,-8px_-8px_16px_#ffffff] overflow-hidden p-6">
+      <div className="p-0 mb-4">
+        <h6 className="text-lg font-bold text-gray-800">Today&apos;s Schedule</h6>
+        <p className="text-sm text-gray-600 opacity-70">Upcoming activities</p>
+      </div>
       <div className="space-y-3">
-        {schedule.length > 0 ? (
+        {loading ? (
+          <div className="text-center py-8 text-gray-600 opacity-70">
+            <div className="w-8 h-8 border-2 border-[#67d18a] border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
+            <p className="text-sm">Loading schedule...</p>
+          </div>
+        ) : schedule.length > 0 ? (
           schedule.map((item, index) => (
             <div
               key={index}
-              className={`flex items-center justify-between p-4 rounded-lg border ${
-                item.completed
-                  ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800'
-                  : 'bg-gray-50 dark:bg-gray-700/50 border-gray-200 dark:border-gray-700'
-              }`}
+              className="flex items-center justify-between p-4 rounded-xl bg-[#ecf0f3] shadow-[inset_4px_4px_8px_#cbced1,inset_-4px_-4px_8px_#ffffff]"
             >
               <div className="flex items-center space-x-3">
                 <div className={`p-2 rounded-lg ${getTypeColor(item.type)}`}>
-                  <span className="material-icons text-sm">{getTypeIcon(item.type)}</span>
+                  {React.createElement(getTypeIcon(item.type), { className: 'text-sm' })}
                 </div>
                 <div>
-                  <div className="font-medium text-gray-900 dark:text-white">
+                  <div className="font-medium text-gray-800">
                     {item.title}
                   </div>
-                  <div className="text-sm text-gray-500 dark:text-gray-400">
+                  <div className="text-sm text-gray-600 opacity-70">
                     {item.time} • {item.duration}
                   </div>
                 </div>
               </div>
               {item.completed && (
-                <span className="material-icons text-green-500 text-sm">
-                  check_circle
-                </span>
+                <MdCheckCircle className="text-green-700 text-sm" />
               )}
             </div>
           ))
         ) : (
-          <div className="text-center py-8 text-gray-500 dark:text-gray-400">
-            <span className="material-icons text-4xl mb-2">event_busy</span>
+          <div className="text-center py-8 text-gray-600 opacity-70">
+            <MdEventBusy className="text-4xl mb-2 mx-auto" />
             <p>No schedule for today</p>
           </div>
         )}

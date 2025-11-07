@@ -3,6 +3,14 @@ export interface Member {
     id: string;
     name: string;
     email: string;
+    phone?: string;
+    address?: string;
+    city?: string;
+    state?: string;
+    zipCode?: string;
+    dateOfBirth?: string;
+    gender?: string;
+    fitnessGoals?: string;
     subscription: Subscription;
     stats: MemberStats;
     profilePhoto?: string;

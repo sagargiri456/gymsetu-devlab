@@ -14,6 +14,7 @@ export interface Member {
     subscription: Subscription;
     stats: MemberStats;
     profilePhoto?: string;
+    dp_link?: string;
   }
   
   export interface Subscription {

@@ -111,7 +111,7 @@ const ProfilePage: React.FC = () => {
   };
 
   const handleChangePhoto = () => {
-    setPhotoLink(formData.dp_link || memberData?.profilePhoto || memberData?.dp_link || '');
+    setPhotoLink(formData.dp_link || memberData?.dp_link || memberData?.profilePhoto || '');
     setShowPhotoDialog(true);
   };
 

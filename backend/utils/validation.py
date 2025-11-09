@@ -98,6 +98,10 @@ def validate_json_request(f):
     # isi problem ko solve karta hai apna wraps(f) function ye jab error aata hai to original function ka naam use karta hai
 
     def decorated_function(*args, **kwargs):
+        # Skip validation for OPTIONS requests (CORS preflight)
+        if request.method == "OPTIONS":
+            return f(*args, **kwargs)
+
         if not request.is_json:
             return jsonify({"error": "Request must be JSON"}), 400
 

@@ -56,12 +56,16 @@ export default function TrainerLoginPage() {
   // Check if trainer is already logged in on page load
   useEffect(() => {
     const checkAuth = async () => {
-      if (isAuthenticated()) {
+      // Check for trainer token
+      const trainerToken = localStorage.getItem("trainer_access_token");
+      if (trainerToken) {
+        // Also set as access_token for compatibility
+        localStorage.setItem("access_token", trainerToken);
         // Verify token is still valid
         const isValid = await verifyToken();
         if (isValid) {
           // Redirect to trainer dashboard if already logged in
-          router.push("/dashboard/trainers");
+          router.push("/trainer");
         }
       }
     };
@@ -90,8 +94,8 @@ export default function TrainerLoginPage() {
         setNeedsPasswordSetup(!data.has_password);
         setStep(2);
       } else {
-        const errorData = await response.json();
-        setError(errorData.message || "Trainer not found. Please check your email and gym selection.");
+        const errorData = await response.json().catch(() => ({ error: "Trainer not found" }));
+        setError(errorData.error || errorData.message || "Trainer not found. Please check your email and gym selection.");
       }
     } catch (error) {
       console.error("Network error:", error);
@@ -109,14 +113,21 @@ export default function TrainerLoginPage() {
 
     try {
       if (needsPasswordSetup) {
-        // Setup password
+        // Step 2a: Setup password first
         if (password !== confirmPassword) {
           setError("Passwords do not match");
           setLoading(false);
           return;
         }
 
-        const response = await fetch(getApiUrl("api/auth/trainer/setup-password"), {
+        if (password.length < 6) {
+          setError("Password must be at least 6 characters long");
+          setLoading(false);
+          return;
+        }
+
+        // Setup password endpoint
+        const setupResponse = await fetch(getApiUrl("api/auth/trainer/setup-password"), {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -128,17 +139,27 @@ export default function TrainerLoginPage() {
           }),
         });
 
-        if (response.ok) {
-          const data = await response.json();
-          localStorage.setItem("trainer_access_token", data.access_token);
-          router.push("/dashboard/trainers");
+        if (!setupResponse.ok) {
+          const errorData = await setupResponse.json().catch(() => ({ error: "Failed to setup password" }));
+          setError(errorData.error || errorData.message || "Failed to setup password. Please try again.");
+          setLoading(false);
+          return;
+        }
+
+        // Password setup successful, get token and login
+        const setupData = await setupResponse.json();
+        if (setupData.success && setupData.access_token) {
+          localStorage.setItem("trainer_access_token", setupData.access_token);
+          // Also store as access_token for compatibility with auth functions
+          localStorage.setItem("access_token", setupData.access_token);
+          router.push("/trainer");
         } else {
-          const errorData = await response.json();
-          setError(errorData.message || "Failed to setup password. Please try again.");
+          setError("Failed to setup password. Please try again.");
+          setLoading(false);
         }
       } else {
-        // Login with password
-        const response = await fetch(getApiUrl("api/auth/trainer/login"), {
+        // Step 2b: Login with password
+        const loginResponse = await fetch(getApiUrl("api/auth/trainer/login"), {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -150,13 +171,23 @@ export default function TrainerLoginPage() {
           }),
         });
 
-        if (response.ok) {
-          const data = await response.json();
-          localStorage.setItem("trainer_access_token", data.access_token);
-          router.push("/dashboard/trainers");
+        if (!loginResponse.ok) {
+          const errorData = await loginResponse.json().catch(() => ({ error: "Login failed" }));
+          setError(errorData.error || errorData.message || "Login failed. Please check your password and try again.");
+          setLoading(false);
+          return;
+        }
+
+        // Login successful
+        const loginData = await loginResponse.json();
+        if (loginData.access_token) {
+          localStorage.setItem("trainer_access_token", loginData.access_token);
+          // Also store as access_token for compatibility with auth functions
+          localStorage.setItem("access_token", loginData.access_token);
+          router.push("/trainer");
         } else {
-          const errorData = await response.json();
-          setError(errorData.message || "Login failed. Please check your password and try again.");
+          setError("Login failed. Please try again.");
+          setLoading(false);
         }
       }
     } catch (error) {

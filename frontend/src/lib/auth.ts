@@ -167,27 +167,46 @@ export const getDashboardStatsData = async (): Promise<DashboardStats | null> =>
 
 /**
  * Check if user has a valid token stored
+ * Checks for access_token, trainer_access_token, or member_access_token
  */
 export const isAuthenticated = (): boolean => {
   if (typeof window === 'undefined') return false;
-  const token = localStorage.getItem('access_token');
+  const token = localStorage.getItem('access_token') || 
+                localStorage.getItem('trainer_access_token') || 
+                localStorage.getItem('member_access_token');
   return !!token;
 };
 
 /**
  * Get the stored access token
+ * Checks for access_token first, then falls back to trainer_access_token or member_access_token
  */
 export const getToken = (): string | null => {
   if (typeof window === 'undefined') return null;
-  return localStorage.getItem('access_token');
+  // Check for main access token first
+  const token = localStorage.getItem('access_token');
+  if (token) return token;
+  
+  // Fallback to trainer token
+  const trainerToken = localStorage.getItem('trainer_access_token');
+  if (trainerToken) return trainerToken;
+  
+  // Fallback to member token
+  const memberToken = localStorage.getItem('member_access_token');
+  if (memberToken) return memberToken;
+  
+  return null;
 };
 
 /**
  * Remove token and logout (sync version - clears local storage only)
+ * Clears all token types: access_token, trainer_access_token, member_access_token
  */
 export const logout = (): void => {
   if (typeof window === 'undefined') return;
   localStorage.removeItem('access_token');
+  localStorage.removeItem('trainer_access_token');
+  localStorage.removeItem('member_access_token');
 };
 
 /**

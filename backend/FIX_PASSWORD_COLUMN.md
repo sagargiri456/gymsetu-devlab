@@ -1,7 +1,7 @@
 # Fix Password Column Length
 
 ## Problem
-The password column in the `member` table is `VARCHAR(100)` but password hashes are 143 characters long, causing database errors.
+The password column in the `member` and `trainer` tables is `VARCHAR(100)` but password hashes are 143 characters long, causing database errors.
 
 ## Solution
 
@@ -9,8 +9,20 @@ The password column in the `member` table is `VARCHAR(100)` but password hashes 
 
 Connect to your PostgreSQL database and run:
 
+**For Member table:**
 ```sql
 ALTER TABLE member ALTER COLUMN password TYPE VARCHAR(255);
+```
+
+**For Trainer table:**
+```sql
+ALTER TABLE trainer ALTER COLUMN password TYPE VARCHAR(255);
+```
+
+**Or both at once:**
+```sql
+ALTER TABLE member ALTER COLUMN password TYPE VARCHAR(255);
+ALTER TABLE trainer ALTER COLUMN password TYPE VARCHAR(255);
 ```
 
 ### Option 2: Run the Migration Script
@@ -27,7 +39,10 @@ ALTER TABLE member ALTER COLUMN password TYPE VARCHAR(255);
 2. **Run the script:**
    ```bash
    cd backend
+   # For member table
    python scripts/fix_password_column.py
+   # For trainer table
+   python scripts/fix_trainer_password_column.py
    ```
 
 ### Option 3: Using psql Command Line
@@ -35,7 +50,11 @@ ALTER TABLE member ALTER COLUMN password TYPE VARCHAR(255);
 If you have PostgreSQL installed and know your database connection details:
 
 ```bash
+# For member table
 psql -U your_username -d your_database_name -c "ALTER TABLE member ALTER COLUMN password TYPE VARCHAR(255);"
+
+# For trainer table
+psql -U your_username -d your_database_name -c "ALTER TABLE trainer ALTER COLUMN password TYPE VARCHAR(255);"
 ```
 
 ### Option 4: Using Python with psycopg2
@@ -51,11 +70,12 @@ db_url = get_database_url()
 conn = psycopg2.connect(db_url)
 cur = conn.cursor()
 
-# Update column
+# Update columns
 cur.execute("ALTER TABLE member ALTER COLUMN password TYPE VARCHAR(255);")
+cur.execute("ALTER TABLE trainer ALTER COLUMN password TYPE VARCHAR(255);")
 conn.commit()
 
-print("✓ Password column updated successfully!")
+print("✓ Password columns updated successfully!")
 
 cur.close()
 conn.close()
@@ -63,17 +83,32 @@ conn.close()
 
 ## Verify the Fix
 
-After running the migration, verify the column was updated:
+After running the migration, verify the columns were updated:
 
+**For Member table:**
 ```sql
 SELECT column_name, character_maximum_length 
 FROM information_schema.columns 
 WHERE table_name='member' AND column_name='password';
 ```
 
-You should see `character_maximum_length = 255`.
+**For Trainer table:**
+```sql
+SELECT column_name, character_maximum_length 
+FROM information_schema.columns 
+WHERE table_name='trainer' AND column_name='password';
+```
+
+**Or check both at once:**
+```sql
+SELECT table_name, column_name, character_maximum_length 
+FROM information_schema.columns 
+WHERE table_name IN ('member', 'trainer') AND column_name='password';
+```
+
+You should see `character_maximum_length = 255` for both tables.
 
 ## After Fixing
 
-Once the column is updated, try the member password setup again. The error should be resolved.
+Once the columns are updated, try the member or trainer password setup again. The error should be resolved.
 

@@ -106,7 +106,7 @@ def trainer_check():
         return (
             jsonify(
                 {
-                    "requires_password": True,
+                    "has_password": True,
                     "message": "Enter your password",
                     "trainer_id": trainer.id,
                     "gym_id": gym_id,
@@ -119,8 +119,7 @@ def trainer_check():
         return (
             jsonify(
                 {
-                    "requires_password": False,
-                    "first_time": True,
+                    "has_password": False,
                     "message": "Setup your password",
                     "trainer_id": trainer.id,
                     "gym_id": gym_id,
@@ -128,6 +127,111 @@ def trainer_check():
             ),
             200,
         )
+
+
+@auth_bp.route("/trainer/setup-password", methods=["POST"])
+@validate_json_request
+@handle_database_errors
+def trainer_setup_password():
+    """Setup password for trainer (first time login)"""
+    from models.trainers import Trainer
+    from models.gym import Gym
+    from database import db
+    import logging
+
+    logger = logging.getLogger(__name__)
+    data = request.get_json()
+
+    # Validate required fields
+    if not data.get("gym_id"):
+        return jsonify({"error": "Gym ID is required"}), 400
+    if not data.get("email"):
+        return jsonify({"error": "Email is required"}), 400
+    if not data.get("password"):
+        return jsonify({"error": "Password is required"}), 400
+
+    gym_id = data["gym_id"]
+    email = data["email"]
+    password = data["password"]
+
+    # Verify gym exists
+    gym = Gym.query.get(gym_id)
+    if not gym:
+        return jsonify({"error": "Gym not found"}), 404
+
+    # Find trainer in this gym
+    trainer = Trainer.query.filter_by(email=email, gym_id=gym_id).first()
+    if not trainer:
+        return jsonify({"error": "Trainer not found in this gym"}), 404
+
+    if not trainer.is_active:
+        return jsonify({"error": "Trainer account is inactive"}), 403
+
+    # Check if password already exists
+    if trainer.password:
+        return (
+            jsonify({"error": "Password already set. Please use login endpoint."}),
+            400,
+        )
+
+    # Setup password for first time
+    try:
+        # Generate password hash
+        trainer.set_password(password)
+
+        # Commit the transaction
+        db.session.commit()
+        logger.info(f"Password set for trainer {trainer.id}")
+
+        # Generate JWT token with trainer info
+        # Token format: "trainer:trainer_id:gym_id"
+        token_identity = f"trainer:{trainer.id}:{gym_id}"
+        access_token = create_access_token(identity=token_identity)
+
+        logger.info(f"Trainer {trainer.id} logged in successfully after password setup")
+        return (
+            jsonify(
+                {
+                    "success": True,
+                    "message": "Password setup successfully. Logged in.",
+                    "access_token": access_token,
+                    "user": {
+                        "id": trainer.id,
+                        "name": trainer.name,
+                        "email": trainer.email,
+                        "role": "trainer",
+                        "gym_id": gym_id,
+                    },
+                }
+            ),
+            200,
+        )
+    except Exception as e:
+        # Always rollback on error to ensure session is in a clean state
+        try:
+            db.session.rollback()
+        except:
+            pass  # Rollback might already be done, ignore
+
+        logger.error(f"Error setting password for trainer {trainer.id}: {str(e)}")
+
+        # Check if it's a database column length error
+        error_msg = str(e)
+        if (
+            "too long for type character varying" in error_msg
+            or "StringDataRightTruncation" in error_msg
+            or "character varying(100)" in error_msg
+        ):
+            return (
+                jsonify(
+                    {
+                        "error": "Database schema needs to be updated. Password column must be VARCHAR(255). Please run: ALTER TABLE trainer ALTER COLUMN password TYPE VARCHAR(255);"
+                    }
+                ),
+                500,
+            )
+
+        return jsonify({"error": f"Failed to set password: {str(e)}"}), 500
 
 
 @auth_bp.route("/trainer/login", methods=["POST"])

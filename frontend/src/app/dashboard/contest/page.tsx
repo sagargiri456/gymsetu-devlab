@@ -7,12 +7,7 @@ import Modal from "../../components/Modal";
 import { getApiUrl } from "@/lib/api";
 import { getToken, isMember } from "@/lib/auth";
 
-// Sample gyms for dropdown
-const gyms = [
-  { id: 1, name: "Main Gym" },
-  { id: 2, name: "Branch Gym" },
-  { id: 3, name: "Premium Gym" },
-];
+// Sample gyms removed - using API data instead
 
 // Sample data will be replaced by API fetch
 

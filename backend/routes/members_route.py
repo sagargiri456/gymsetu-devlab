@@ -12,6 +12,7 @@ from utils.validation import (
     validate_json_request,
 )
 from utils.middleware import handle_database_errors
+from utils.cloudinary_utils import upload_member_photo, validate_image_file
 from datetime import datetime, timedelta
 
 members_bp = Blueprint("members", __name__, url_prefix="/api/members")
@@ -19,13 +20,31 @@ members_bp = Blueprint("members", __name__, url_prefix="/api/members")
 
 @members_bp.route("/add_member", methods=["POST"])
 @owner_required
-@validate_json_request
 @handle_database_errors
 def add_member(current_gym):
-    data = request.get_json()
+    # Handle both JSON (for backward compatibility) and form-data (for file uploads)
+    if request.is_json:
+        data = request.get_json()
+        photo_file = None
+    else:
+        # Handle multipart/form-data
+        data = {
+            "name": request.form.get("name"),
+            "email": request.form.get("email"),
+            "phone": request.form.get("phone"),
+            "address": request.form.get("address"),
+            "city": request.form.get("city"),
+            "state": request.form.get("state"),
+            "zip": request.form.get("zip"),
+            "expiration_date": request.form.get("expiration_date") or None,
+        }
+        photo_file = request.files.get("photo")
 
     # Validate member data
-    validate_member_data(data)
+    try:
+        validate_member_data(data)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 400
 
     # Check if email already exists for this gym
     existing_member = Member.query.filter_by(
@@ -34,6 +53,25 @@ def add_member(current_gym):
     if existing_member:
         return jsonify({"error": "Member with this email already exists"}), 409
 
+    # Handle photo upload to Cloudinary
+    dp_link = None
+    if photo_file:
+        # Validate image file
+        is_valid, error_message = validate_image_file(photo_file)
+        if not is_valid:
+            return jsonify({"error": f"Invalid image file: {error_message}"}), 400
+
+        # Upload to Cloudinary (we'll update member_id after creation)
+        upload_result = upload_member_photo(photo_file, gym_id=current_gym.id)
+        if upload_result:
+            dp_link = upload_result["url"]
+        else:
+            return jsonify({"error": "Failed to upload image to Cloudinary"}), 500
+    elif request.is_json and "dp_link" in data and data["dp_link"]:
+        # Backward compatibility: accept base64 or URL directly
+        dp_link = data["dp_link"]
+
+    # Create member
     member = Member(
         name=data["name"],
         email=data["email"],
@@ -44,10 +82,41 @@ def add_member(current_gym):
         zip=data["zip"],
         gym_id=current_gym.id,
     )
+
+    # Add expiration_date if provided
+    if "expiration_date" in data and data["expiration_date"]:
+        try:
+            from datetime import datetime
+
+            member.expiration_date = datetime.fromisoformat(
+                data["expiration_date"].replace("Z", "+00:00")
+            )
+        except:
+            pass
+
+    # Add dp_link if we have one
+    if dp_link:
+        member.dp_link = dp_link
+
     db.session.add(member)
     db.session.commit()
 
-    return jsonify({"success": True, "message": "Member added successfully"}), 201
+    # If we uploaded a photo, update it with the member_id for better organization
+    if photo_file and upload_result:
+        # Re-upload with member_id in the filename (optional, for better organization)
+        # This is optional - the current upload already works fine
+        pass
+
+    return (
+        jsonify(
+            {
+                "success": True,
+                "message": "Member added successfully",
+                "member": member.to_dict(),
+            }
+        ),
+        201,
+    )
 
 
 @members_bp.route("/get_members", methods=["GET"])

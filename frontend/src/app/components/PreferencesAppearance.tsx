@@ -23,7 +23,7 @@ const PreferencesAppearance: React.FC<PreferencesAppearanceProps> = ({
       onDarkModeToggle(enabled);
       setMessage({ type: 'success', text: 'Appearance preferences updated successfully!' });
       setTimeout(() => setMessage({ type: '', text: '' }), 3000);
-    } catch (error) {
+    } catch {
       setMessage({ type: 'error', text: 'Failed to update appearance preferences' });
     } finally {
       setLoading(false);

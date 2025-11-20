@@ -18,7 +18,9 @@ class Member(db.Model):
     is_active = db.Column(db.Boolean, nullable=False, default=True)
     address = db.Column(db.String(100), nullable=False)
     city = db.Column(db.String(100), nullable=False)
-    dp_link = db.Column(db.String(200), nullable=True)
+    dp_link = db.Column(
+        db.Text, nullable=True
+    )  # Stores Cloudinary URL for member photo
     state = db.Column(db.String(100), nullable=False)
     zip = db.Column(db.String(100), nullable=False)
     expiration_date = db.Column(db.DateTime, nullable=True)

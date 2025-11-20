@@ -1,7 +1,7 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { MdAdd } from "react-icons/md";
+import { MdAdd, MdCameraAlt, MdPhotoLibrary } from "react-icons/md";
 import MemberCard from "./MemberCard";
 import MemberModal from "./MemberModal";
 import Modal from "../../components/Modal";
@@ -32,6 +32,10 @@ export default function MembersPage() {
   const [filter, setFilter] = useState<FilterType>("All");
   const [editingMember, setEditingMember] = useState<Member | null>(null);
   const [dpLink, setDpLink] = useState("");
+  const [memberPhoto, setMemberPhoto] = useState<string>("");
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
+  const galleryInputRef = useRef<HTMLInputElement>(null);
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -180,6 +184,56 @@ export default function MembersPage() {
     }));
   };
 
+  const handleCameraClick = () => {
+    cameraInputRef.current?.click();
+  };
+
+  const handleGalleryClick = () => {
+    galleryInputRef.current?.click();
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      alert('Please select an image file');
+      return;
+    }
+
+    // Validate file size (max 10MB - Cloudinary can handle larger)
+    if (file.size > 10 * 1024 * 1024) {
+      alert('Image size must be less than 10MB');
+      return;
+    }
+
+    // Store the file directly (no need to convert to base64)
+    setPhotoFile(file);
+    
+    // Create preview URL for display
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const previewUrl = reader.result as string;
+      setMemberPhoto(previewUrl);
+    };
+    reader.onerror = () => {
+      alert('Failed to read image file');
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleRemovePhoto = () => {
+    setMemberPhoto("");
+    setPhotoFile(null);
+    if (cameraInputRef.current) {
+      cameraInputRef.current.value = '';
+    }
+    if (galleryInputRef.current) {
+      galleryInputRef.current.value = '';
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
@@ -189,23 +243,32 @@ export default function MembersPage() {
         return;
       }
 
+      // Create FormData for file upload
+      const formDataToSend = new FormData();
+      formDataToSend.append("name", formData.name);
+      formDataToSend.append("email", formData.email);
+      formDataToSend.append("phone", formData.phone);
+      formDataToSend.append("address", formData.address);
+      formDataToSend.append("city", formData.city);
+      formDataToSend.append("state", formData.state);
+      formDataToSend.append("zip", formData.zip);
+      if (formData.expiration_date) {
+        formDataToSend.append("expiration_date", formData.expiration_date);
+      }
+      formDataToSend.append("gym_id", formData.gym_id.toString());
+      
+      // Add photo file if available
+      if (photoFile) {
+        formDataToSend.append("photo", photoFile);
+      }
+
       const response = await fetch(getApiUrl("api/members/add_member"), {
         method: "POST",
         headers: {
-          "Content-Type": "application/json",
+          // Don't set Content-Type header - browser will set it with boundary for FormData
           "Authorization": `Bearer ${token}`,
         },
-        body: JSON.stringify({
-          name: formData.name,
-          email: formData.email,
-          phone: formData.phone,
-          address: formData.address,
-          city: formData.city,
-          state: formData.state,
-          zip: formData.zip,
-          expiration_date: formData.expiration_date || null,
-          gym_id: formData.gym_id,
-        }),
+        body: formDataToSend,
       });
 
       if (response.ok) {
@@ -226,6 +289,14 @@ export default function MembersPage() {
           expiration_date: "",
           gym_id: 1,
         });
+        setMemberPhoto("");
+        setPhotoFile(null);
+        if (cameraInputRef.current) {
+          cameraInputRef.current.value = '';
+        }
+        if (galleryInputRef.current) {
+          galleryInputRef.current.value = '';
+        }
         setIsAddModalOpen(false);
         alert("Member added successfully!");
         // Refresh the members list
@@ -415,6 +486,76 @@ export default function MembersPage() {
         title="Add New Member"
       >
         <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Photo Upload Section */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Member Photo (Optional)
+            </label>
+            <div className="flex flex-col items-center space-y-4">
+              {memberPhoto ? (
+                <div className="relative">
+                  <div className="w-32 h-32 rounded-full overflow-hidden border-4 border-green-500 shadow-lg">
+                    <img
+                      src={memberPhoto}
+                      alt="Member preview"
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleRemovePhoto}
+                    className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 transition-colors"
+                    title="Remove photo"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+              ) : (
+                <div className="w-32 h-32 rounded-full bg-gray-200 flex items-center justify-center border-4 border-dashed border-gray-400">
+                  <MdCameraAlt className="w-12 h-12 text-gray-500" />
+                </div>
+              )}
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={handleCameraClick}
+                  className="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                >
+                  <MdCameraAlt className="w-5 h-5 mr-2" />
+                  Take Photo
+                </button>
+                <button
+                  type="button"
+                  onClick={handleGalleryClick}
+                  className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  <MdPhotoLibrary className="w-5 h-5 mr-2" />
+                  Choose from Gallery
+                </button>
+              </div>
+              <input
+                ref={cameraInputRef}
+                type="file"
+                accept="image/*"
+                capture="environment"
+                onChange={handleFileChange}
+                className="hidden"
+              />
+              <input
+                ref={galleryInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleFileChange}
+                className="hidden"
+              />
+              <p className="text-xs text-gray-500 text-center">
+                Click to take a photo with camera or choose from gallery
+              </p>
+            </div>
+          </div>
+
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Name
@@ -553,7 +694,17 @@ export default function MembersPage() {
           <div className="flex justify-end space-x-4 pt-4">
             <button
               type="button"
-              onClick={() => setIsAddModalOpen(false)}
+              onClick={() => {
+                setIsAddModalOpen(false);
+                setMemberPhoto("");
+                setPhotoFile(null);
+                if (cameraInputRef.current) {
+                  cameraInputRef.current.value = '';
+                }
+                if (galleryInputRef.current) {
+                  galleryInputRef.current.value = '';
+                }
+              }}
               className="px-6 py-2 text-gray-600 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors"
             >
               Cancel

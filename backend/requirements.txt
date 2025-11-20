@@ -19,6 +19,10 @@ PyJWT==2.10.1
 # Production Server
 gunicorn==23.0.0
 
+# Image Upload
+cloudinary==1.41.0
+pillow==10.4.0
+
 # Development Dependencies (optional - for code formatting and git hooks)
 # Uncomment the following lines if you want to include development tools:
 # black==25.9.0

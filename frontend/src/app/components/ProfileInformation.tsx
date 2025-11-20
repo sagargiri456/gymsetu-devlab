@@ -88,7 +88,7 @@ const ProfileInformation: React.FC<ProfileInformationProps> = ({ gymData, onUpda
       } else {
         setMessage({ type: 'error', text: result.message });
       }
-    } catch (error) {
+    } catch {
       setMessage({ type: 'error', text: 'Failed to update profile' });
     } finally {
       setLoading(false);

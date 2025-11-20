@@ -24,7 +24,9 @@ class Trainer(db.Model):
     bio = db.Column(db.String(100), nullable=True)
     skills = db.Column(db.String(100), nullable=True)
     languages = db.Column(db.String(100), nullable=True)
-    dp_link = db.Column(db.String(200), nullable=True)
+    dp_link = db.Column(
+        db.Text, nullable=True
+    )  # Stores Cloudinary URL for trainer photo
     state = db.Column(db.String(100), nullable=False)
     zip = db.Column(db.String(100), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)

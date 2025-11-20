@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { getApiUrl } from "@/lib/api";
-import { isAuthenticated, verifyToken } from "@/lib/auth";
+import { verifyToken } from "@/lib/auth";
 
 interface Gym {
   id: number;

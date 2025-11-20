@@ -262,6 +262,19 @@ export default function MembersPage() {
         formDataToSend.append("photo", photoFile);
       }
 
+      // Log what we're sending (for debugging)
+      console.log("Sending member data:", {
+        name: formData.name,
+        email: formData.email,
+        phone: formData.phone,
+        address: formData.address,
+        city: formData.city,
+        state: formData.state,
+        zip: formData.zip,
+        expiration_date: formData.expiration_date,
+        hasPhoto: !!photoFile,
+      });
+
       const response = await fetch(getApiUrl("api/members/add_member"), {
         method: "POST",
         headers: {
@@ -322,10 +335,17 @@ export default function MembersPage() {
         localStorage.removeItem("access_token");
         router.push("/login");
       } else {
-        const errorData = await response.json();
-        console.error("Failed to add member:", response.status, response.statusText);
-        console.error("Error response:", errorData);
-        alert(`Failed to add member: ${errorData.message || response.statusText}`);
+        let errorMessage = "Failed to add member";
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.error || errorData.message || errorMessage;
+          console.error("Failed to add member:", response.status, response.statusText);
+          console.error("Error response:", errorData);
+        } catch (e) {
+          console.error("Failed to parse error response:", e);
+          errorMessage = `Server error: ${response.status} ${response.statusText}`;
+        }
+        alert(errorMessage);
       }
     } catch (error) {
       console.error("Network error:", error);
@@ -656,7 +676,7 @@ export default function MembersPage() {
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Expiration Date
+              Expiration Date (Optional)
             </label>
             <input
               type="date"
@@ -664,7 +684,6 @@ export default function MembersPage() {
               value={formData.expiration_date}
               onChange={handleInputChange}
               min={new Date().toISOString().split('T')[0]}
-              required
               className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-green-500 focus:border-transparent cursor-pointer"
               onClick={(e) => {
                 // Ensure the calendar opens on click
@@ -672,7 +691,7 @@ export default function MembersPage() {
               }}
             />
             <p className="mt-2 text-xs text-gray-500">
-              Select the membership expiration date
+              Select the membership expiration date (optional)
             </p>
           </div>
 

@@ -22,28 +22,66 @@ members_bp = Blueprint("members", __name__, url_prefix="/api/members")
 @owner_required
 @handle_database_errors
 def add_member(current_gym):
+    import logging
+
+    logger = logging.getLogger(__name__)
+
     # Handle both JSON (for backward compatibility) and form-data (for file uploads)
     if request.is_json:
         data = request.get_json()
         photo_file = None
     else:
         # Handle multipart/form-data
+        # Get all form fields and strip whitespace
+        name = request.form.get("name", "").strip()
+        email = request.form.get("email", "").strip()
+        phone = request.form.get("phone", "").strip()
+        address = request.form.get("address", "").strip()
+        city = request.form.get("city", "").strip()
+        state = request.form.get("state", "").strip()
+        zip_code = request.form.get("zip", "").strip()
+        expiration_date = request.form.get("expiration_date", "").strip() or None
+
         data = {
-            "name": request.form.get("name"),
-            "email": request.form.get("email"),
-            "phone": request.form.get("phone"),
-            "address": request.form.get("address"),
-            "city": request.form.get("city"),
-            "state": request.form.get("state"),
-            "zip": request.form.get("zip"),
-            "expiration_date": request.form.get("expiration_date") or None,
+            "name": name,
+            "email": email,
+            "phone": phone,
+            "address": address,
+            "city": city,
+            "state": state,
+            "zip": zip_code,
+            "expiration_date": expiration_date,
         }
         photo_file = request.files.get("photo")
+
+        # Log received data for debugging (without sensitive info)
+        logger.info(
+            f"Received FormData - name: {name[:20] if name else 'empty'}, email: {email[:20] if email else 'empty'}, phone: {phone[:10] if phone else 'empty'}"
+        )
+        logger.info(
+            f"Address: {address[:30] if address else 'empty'}, City: {city[:20] if city else 'empty'}, State: {state[:20] if state else 'empty'}, ZIP: {zip_code[:10] if zip_code else 'empty'}"
+        )
+        logger.info(f"Photo file: {photo_file.filename if photo_file else 'None'}")
+
+        # Check for empty required fields before validation
+        empty_fields = [
+            k for k, v in data.items() if k != "expiration_date" and (not v or v == "")
+        ]
+        if empty_fields:
+            logger.warning(f"Empty required fields detected: {empty_fields}")
+            return (
+                jsonify(
+                    {"error": f"Missing required fields: {', '.join(empty_fields)}"}
+                ),
+                400,
+            )
 
     # Validate member data
     try:
         validate_member_data(data)
     except Exception as e:
+        logger.error(f"Validation error: {str(e)}")
+        logger.error(f"Data received: {data}")
         return jsonify({"error": str(e)}), 400
 
     # Check if email already exists for this gym

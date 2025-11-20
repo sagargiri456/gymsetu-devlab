@@ -44,7 +44,10 @@ def validate_required_fields(data, required_fields):
     """Validate that all required fields are present"""
     missing_fields = []
     for field in required_fields:
-        if field not in data or data[field] is None or data[field] == "":
+        value = (
+            data.get(field) if isinstance(data, dict) else getattr(data, field, None)
+        )
+        if value is None or (isinstance(value, str) and value.strip() == ""):
             missing_fields.append(field)
 
     if missing_fields:

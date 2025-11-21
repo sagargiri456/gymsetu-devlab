@@ -16,17 +16,21 @@ except ImportError:
 logger = logging.getLogger(__name__)
 
 scheduler = None
+app_instance = None
 
 
 def init_scheduler(app):
     """
     Initialize the APScheduler to run daily checks.
     """
-    global scheduler
+    global scheduler, app_instance
 
     if scheduler is not None:
         logger.warning("Scheduler already initialized")
         return scheduler
+
+    # Store app instance for use in background jobs
+    app_instance = app
 
     scheduler = BackgroundScheduler()
     scheduler.start()
@@ -74,9 +78,12 @@ def run_daily_check():
     """
     Wrapper function to run the daily check with app context.
     """
-    from flask import current_app
+    global app_instance
+    if not app_instance:
+        logger.error("App instance not available for scheduler")
+        return
 
-    with current_app.app_context():
+    with app_instance.app_context():
         logger.info("Running daily expiration check...")
         result = check_expired_memberships()
         logger.info(f"Daily check completed: {result}")
@@ -88,9 +95,12 @@ def run_keep_alive_and_check():
     1. Ping the server's health endpoint to keep it alive (external HTTP request for Render)
     2. Check for expired memberships and notify if any
     """
-    from flask import current_app
+    global app_instance
+    if not app_instance:
+        logger.error("App instance not available for scheduler")
+        return
 
-    with current_app.app_context():
+    with app_instance.app_context():
         try:
             # Try to make an external HTTP request first (for Render to see traffic)
             # This is what actually keeps the server alive on Render
@@ -116,13 +126,13 @@ def run_keep_alive_and_check():
                 except Exception as e:
                     logger.warning(f"Failed to ping external health endpoint: {str(e)}")
                     # Fall back to internal test client
-                    _ping_internal_health(current_app)
+                    _ping_internal_health(app_instance)
             else:
                 # Use internal test client if external URL not available or requests not installed
                 logger.info(
                     "Running keep-alive check: pinging /health endpoint (internal)"
                 )
-                _ping_internal_health(current_app)
+                _ping_internal_health(app_instance)
 
             # Check for expired memberships
             logger.info("Checking for expired memberships...")

@@ -48,59 +48,61 @@ export default function MembersPage() {
     gym_id: 1,
   });
 
-  useEffect(() => {
-    const fetchMembers = async () => {
-      try {
-        const token = localStorage.getItem("access_token");
-        if (!token) {
-          router.push("/login");
-          return;
-        }
-        console.log("Token found");
-
-        const apiUrl = getApiUrl("/api/members/get_members");
-        const response = await fetch(apiUrl, {
-          method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${token}`,
-          },
-        });
-
-        if (response.ok) {
-          const data = await response.json();
-          if (data.success && data.members) {
-            setMembers(data.members);
-          } else if (Array.isArray(data)) {
-            // Fallback: if the API returns an array directly
-            setMembers(data);
-          } else {
-            console.log("No members data found in response");
-            setMembers([]);
-          }
-        } else if (response.status === 401) {
-          localStorage.removeItem("access_token");
-          router.push("/login");
-          return;
-        } else {
-          // If it's a 400 or 404 error, the API might not exist yet
-          if (response.status === 400 || response.status === 404) {
-            console.log("API endpoint might not exist yet. Using empty array as fallback.");
-            setMembers([]);
-          } else {
-            const errorText = await response.text();
-            console.error("Failed to fetch members:", response.status, response.statusText);
-            console.error("Error response:", errorText);
-          }
-        }
-      } catch (error) {
-        console.error("Network error:", error);
-      } finally {
-        setLoading(false);
+  const fetchMembers = async () => {
+    try {
+      const token = localStorage.getItem("access_token");
+      if (!token) {
+        router.push("/login");
+        return;
       }
-    };
+      console.log("Token found");
+
+      const apiUrl = getApiUrl("/api/members/get_members");
+      const response = await fetch(apiUrl, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`,
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success && data.members) {
+          setMembers(data.members);
+        } else if (Array.isArray(data)) {
+          // Fallback: if the API returns an array directly
+          setMembers(data);
+        } else {
+          console.log("No members data found in response");
+          setMembers([]);
+        }
+      } else if (response.status === 401) {
+        localStorage.removeItem("access_token");
+        router.push("/login");
+        return;
+      } else {
+        // If it's a 400 or 404 error, the API might not exist yet
+        if (response.status === 400 || response.status === 404) {
+          console.log("API endpoint might not exist yet. Using empty array as fallback.");
+          setMembers([]);
+        } else {
+          const errorText = await response.text();
+          console.error("Failed to fetch members:", response.status, response.statusText);
+          console.error("Error response:", errorText);
+        }
+      }
+    } catch (error) {
+      console.error("Network error:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
     fetchMembers();
-  }, [router]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Helper function to get member status (matching MemberCard logic)
   const getMemberStatus = (member: Member): "Active" | "Expired" => {
@@ -430,6 +432,7 @@ export default function MembersPage() {
         <MemberModal
           member={selectedMember}
           onClose={() => setSelectedMember(null)}
+          onMemberUpdated={fetchMembers}
         />
       )}
 

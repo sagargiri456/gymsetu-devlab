@@ -13,6 +13,8 @@ import { FaGlobe } from "react-icons/fa";
 import Image from "next/image";
 import { logoutUser, getCurrentUser, UserData, fetchGymProfile, GymProfile, isMember, isTrainer } from "@/lib/auth";
 import { fetchMemberProfile } from "@/lib/memberApi";
+import { getNotifications, getUnreadCount, markAsRead, markAllAsRead, Notification, subscribePushNotifications } from "@/lib/notificationApi";
+import { registerServiceWorker, subscribeToPushNotifications, requestNotificationPermission } from "@/lib/pushNotifications";
 
 // Styled Components for Dark Mode Toggle
 const StyledWrapper = styled.div`
@@ -201,14 +203,17 @@ interface TopbarProps {
 }
 
 const Topbar: React.FC<TopbarProps> = ({ onMenuClick }) => {
-  const notificationCount = 13;
   const [userData, setUserData] = useState<UserData | null>(null);
   const [gymProfile, setGymProfile] = useState<GymProfile | null>(null);
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
   const [isMemberUser, setIsMemberUser] = useState(false);
   const [isTrainerUser, setIsTrainerUser] = useState(false);
   const [memberProfilePhoto, setMemberProfilePhoto] = useState<string | null>(null);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [notificationCount, setNotificationCount] = useState(0);
+  const [notificationDropdownOpen, setNotificationDropdownOpen] = useState(false);
   const profileDropdownRef = useRef<HTMLDivElement>(null);
+  const notificationDropdownRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
 
   // Get user data and gym profile on mount
@@ -250,6 +255,72 @@ const Topbar: React.FC<TopbarProps> = ({ onMenuClick }) => {
     loadUserData();
   }, []);
 
+  // Load notifications and initialize push notifications (only for admin users)
+  useEffect(() => {
+    if (isMemberUser || isTrainerUser) {
+      return; // Don't load notifications for members or trainers
+    }
+
+    const loadNotifications = async () => {
+      try {
+        const [notificationsData, unreadCount] = await Promise.all([
+          getNotifications(10, false),
+          getUnreadCount(),
+        ]);
+        setNotifications(notificationsData.notifications || []);
+        setNotificationCount(unreadCount);
+      } catch (error) {
+        console.error('Failed to load notifications:', error);
+        // Don't set error state - just log it and continue
+        // This prevents the app from breaking if notifications API is unavailable
+        setNotifications([]);
+        setNotificationCount(0);
+      }
+    };
+
+    const setupPushNotifications = async () => {
+      try {
+        // Check if notifications are supported
+        if (typeof window === 'undefined' || !('Notification' in window)) {
+          console.warn('Notifications are not supported in this browser');
+          return;
+        }
+
+        // Initialize push notifications (will request permission if needed)
+        const registration = await registerServiceWorker();
+        if (registration) {
+          // Check if already subscribed
+          const existingSubscription = await registration.pushManager.getSubscription();
+          if (!existingSubscription) {
+            // Request permission and subscribe using the safe function
+            const permission = await requestNotificationPermission();
+            if (permission === 'granted') {
+              const subscription = await subscribeToPushNotifications(registration);
+              if (subscription) {
+                // Send subscription to backend
+                await subscribePushNotifications(subscription);
+              }
+            }
+          } else {
+            // Already subscribed, just send to backend to ensure it's registered
+            await subscribePushNotifications(existingSubscription);
+          }
+        }
+      } catch (error) {
+        console.error('Failed to setup push notifications:', error);
+        // Don't block the app if push notifications fail
+      }
+    };
+
+    loadNotifications();
+    setupPushNotifications();
+
+    // Poll for new notifications every 30 seconds
+    const interval = setInterval(loadNotifications, 30000);
+
+    return () => clearInterval(interval);
+  }, [isMemberUser, isTrainerUser]);
+
   // Generate profile image from user's first letter (fallback)
   const getProfileImageSrc = (name: string): string => {
     const firstLetter = name.charAt(0).toUpperCase();
@@ -275,22 +346,25 @@ const Topbar: React.FC<TopbarProps> = ({ onMenuClick }) => {
     ? (userData ? getProfileImageSrc(userData.name) : "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGNpcmNsZSBjeD0iMjAiIGN5PSIyMCIgcj0iMjAiIGZpbGw9IiM0RjQ2RTUiLz4KPHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxOCIgZm9udC13ZWlnaHQ9ImJvbGQiIGZpbGw9IndoaXRlIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBkeT0iLjNlbSI+TTwvdGV4dD4KPC9zdmc+")
     : (gymProfile?.logo_link || (userData ? getProfileImageSrc(userData.name) : "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGNpcmNsZSBjeD0iMjAiIGN5PSIyMCIgcj0iMjAiIGZpbGw9IiM0RjQ2RTUiLz4KPHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxOCIgZm9udC13ZWlnaHQ9ImJvbGQiIGZpbGw9IndoaXRlIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBkeT0iLjNlbSI+QTwvdGV4dD4KPC9zdmc+"));
 
-  // Close dropdown when clicking outside
+  // Close dropdowns when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (profileDropdownRef.current && !profileDropdownRef.current.contains(event.target as Node)) {
         setProfileDropdownOpen(false);
       }
+      if (notificationDropdownRef.current && !notificationDropdownRef.current.contains(event.target as Node)) {
+        setNotificationDropdownOpen(false);
+      }
     };
 
-    if (profileDropdownOpen) {
+    if (profileDropdownOpen || notificationDropdownOpen) {
       document.addEventListener('mousedown', handleClickOutside);
     }
 
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, [profileDropdownOpen]);
+  }, [profileDropdownOpen, notificationDropdownOpen]);
 
   const handleLogout = async () => {
     await logoutUser();
@@ -304,9 +378,43 @@ const Topbar: React.FC<TopbarProps> = ({ onMenuClick }) => {
   };
 
   const handleNotificationClick = () => {
-    // Placeholder for notification functionality
-    console.log('Notifications clicked');
-    // TODO: Implement notification dropdown or modal
+    setNotificationDropdownOpen(!notificationDropdownOpen);
+  };
+
+  const handleMarkAsRead = async (notificationId: number) => {
+    try {
+      await markAsRead(notificationId);
+      // Update local state
+      setNotifications(prev =>
+        prev.map(n => n.id === notificationId ? { ...n, is_read: true } : n)
+      );
+      setNotificationCount(prev => Math.max(0, prev - 1));
+    } catch (error) {
+      console.error('Failed to mark notification as read:', error);
+    }
+  };
+
+  const handleMarkAllAsRead = async () => {
+    try {
+      await markAllAsRead();
+      // Update local state
+      setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
+      setNotificationCount(0);
+    } catch (error) {
+      console.error('Failed to mark all notifications as read:', error);
+    }
+  };
+
+  const formatNotificationTime = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+
+    if (diffInSeconds < 60) return 'Just now';
+    if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m ago`;
+    if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h ago`;
+    if (diffInSeconds < 604800) return `${Math.floor(diffInSeconds / 86400)}d ago`;
+    return date.toLocaleDateString();
   };
 
   const handleLanguageClick = () => {
@@ -360,17 +468,90 @@ const Topbar: React.FC<TopbarProps> = ({ onMenuClick }) => {
             <FaGlobe size={18} />
           </button>
 
-          {/* Notifications */}
-          <button 
-            onClick={handleNotificationClick}
-            className="relative text-gray-700 p-3 rounded-full bg-[#ecf0f3] shadow-[4px_4px_8px_#cbced1,-4px_-4px_8px_#ffffff] hover:shadow-[inset_4px_4px_8px_#cbced1,inset_-4px_-4px_8px_#ffffff] transition-all"
-            title="Notifications"
-          >
-            <MdOutlineNotifications size={22} />
-            <span className="absolute top-0 right-0 inline-flex items-center justify-center px-1.5 py-0.5 text-[10px] font-bold text-white transform translate-x-1/2 -translate-y-1/2 bg-red-500 rounded-full">
-              {notificationCount}
-            </span>
-          </button>
+          {/* Notifications - Only show for admin users */}
+          {!isMemberUser && !isTrainerUser && (
+            <div className="relative" ref={notificationDropdownRef}>
+              <button 
+                onClick={handleNotificationClick}
+                className="relative text-gray-700 p-3 rounded-full bg-[#ecf0f3] shadow-[4px_4px_8px_#cbced1,-4px_-4px_8px_#ffffff] hover:shadow-[inset_4px_4px_8px_#cbced1,inset_-4px_-4px_8px_#ffffff] transition-all"
+                title="Notifications"
+              >
+                <MdOutlineNotifications size={22} />
+                {notificationCount > 0 && (
+                  <span className="absolute top-0 right-0 inline-flex items-center justify-center px-1.5 py-0.5 text-[10px] font-bold text-white transform translate-x-1/2 -translate-y-1/2 bg-red-500 rounded-full min-w-[18px]">
+                    {notificationCount > 99 ? '99+' : notificationCount}
+                  </span>
+                )}
+              </button>
+
+              {/* Notification Dropdown */}
+              {notificationDropdownOpen && (
+                <div className="absolute right-0 mt-2 w-80 sm:w-96 rounded-xl bg-[#ecf0f3] shadow-[8px_8px_16px_#cbced1,-8px_-8px_16px_#ffffff] border-none overflow-hidden z-50 max-h-[500px] flex flex-col">
+                  <div className="p-4 border-b border-gray-300 border-opacity-30 flex items-center justify-between">
+                    <h3 className="text-lg font-bold text-gray-800">Notifications</h3>
+                    {notificationCount > 0 && (
+                      <button
+                        onClick={handleMarkAllAsRead}
+                        className="text-sm text-blue-600 hover:text-blue-800 font-medium"
+                      >
+                        Mark all as read
+                      </button>
+                    )}
+                  </div>
+                  <div className="overflow-y-auto max-h-[400px]">
+                    {notifications.length === 0 ? (
+                      <div className="p-8 text-center text-gray-500">
+                        <MdOutlineNotifications size={48} className="mx-auto mb-2 opacity-50" />
+                        <p>No notifications</p>
+                      </div>
+                    ) : (
+                      notifications.map(notification => (
+                        <div
+                          key={notification.id}
+                          className={`p-4 border-b border-gray-300 border-opacity-30 hover:bg-gray-50 cursor-pointer transition-colors ${
+                            !notification.is_read ? 'bg-blue-50' : ''
+                          }`}
+                          onClick={() => !notification.is_read && handleMarkAsRead(notification.id)}
+                        >
+                          <div className="flex items-start space-x-3">
+                            {!notification.is_read && (
+                              <span className="w-2 h-2 bg-blue-500 rounded-full mt-2 flex-shrink-0"></span>
+                            )}
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-semibold text-gray-900">
+                                {notification.title}
+                              </p>
+                              <p className="text-sm text-gray-700 mt-1">
+                                {notification.message}
+                              </p>
+                              {notification.member_name && (
+                                <p className="text-xs text-gray-500 mt-1">
+                                  Member: {notification.member_name}
+                                </p>
+                              )}
+                              <p className="text-xs text-gray-500 mt-2">
+                                {formatNotificationTime(notification.created_at)}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                  {notifications.length > 0 && (
+                    <div className="p-2 border-t border-gray-300 border-opacity-30">
+                      <button
+                        onClick={() => router.push('/dashboard/members')}
+                        className="w-full text-center text-sm text-blue-600 hover:text-blue-800 font-medium py-2"
+                      >
+                        View All Members
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Profile Avatar with Dropdown */}
           <div className="relative" ref={profileDropdownRef}>

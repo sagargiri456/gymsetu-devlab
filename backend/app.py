@@ -55,12 +55,36 @@ def create_app():
     if "http://127.0.0.1:3000" not in allowed_origins:
         allowed_origins.append("http://127.0.0.1:3000")
 
+    # For local network access (IP addresses), allow common local network patterns
+    # This allows access via IP like http://10.242.121.46:3000 or http://192.168.x.x:3000
+    # Check if we're in development mode
+    is_production = (
+        os.getenv("FLASK_ENV") == "production"
+        or os.getenv("ENVIRONMENT") == "production"
+    )
+
+    if not is_production:
+        # In development, add common local network IP patterns to allowed origins
+        # This allows access from any device on the local network
+        logger.info("Development mode: Allowing requests from local network IPs")
+        # Note: For production, explicitly set ALLOWED_ORIGINS with specific URLs
+
     # Add frontend URL to allowed origins if in production
     frontend_url = os.getenv("FRONTEND_URL", "").strip()
     if frontend_url:
         frontend_url_clean = frontend_url.rstrip("/")
         if frontend_url_clean not in allowed_origins:
             allowed_origins.append(frontend_url_clean)
+        # Also add HTTPS version if HTTP was provided
+        if frontend_url_clean.startswith("http://"):
+            https_version = frontend_url_clean.replace("http://", "https://", 1)
+            if https_version not in allowed_origins:
+                allowed_origins.append(https_version)
+        # Also add HTTP version if HTTPS was provided (for development)
+        elif frontend_url_clean.startswith("https://"):
+            http_version = frontend_url_clean.replace("https://", "http://", 1)
+            if http_version not in allowed_origins:
+                allowed_origins.append(http_version)
 
     # Remove duplicates and filter empty strings
     allowed_origins = list(set(filter(None, allowed_origins)))
@@ -68,6 +92,19 @@ def create_app():
     logger.info(f"CORS allowed origins: {allowed_origins}")
 
     # Configure CORS with comprehensive settings
+    # In development, allow local network IPs by adding them dynamically
+    if not is_production:
+        # For development: add common local network patterns
+        # This allows access from IP addresses like http://10.242.121.46:3000
+        # Note: You can also explicitly add your IP via ALLOWED_ORIGINS env var
+        # Example: ALLOWED_ORIGINS=http://localhost:3000,http://10.242.121.46:3000
+        logger.info(
+            "Development mode: CORS will allow local network IPs if added to ALLOWED_ORIGINS"
+        )
+        logger.info("To allow a specific IP, add it to ALLOWED_ORIGINS env var, e.g.:")
+        logger.info("  ALLOWED_ORIGINS=http://localhost:3000,http://10.242.121.46:3000")
+
+    # Configure CORS - flask-cors requires explicit origins when using credentials
     cors.init_app(
         app,
         origins=allowed_origins,
@@ -136,6 +173,13 @@ def create_app():
     from routes.trainers_route import trainers_bp
     from routes.contest_route import contest_bp
     from routes.participants_route import participants_bp
+    from routes.notification_route import notification_bp
+
+    # Health check endpoint to keep server alive
+    @app.route("/health", methods=["GET"])
+    def health_check():
+        """Simple health check endpoint to keep the server alive"""
+        return jsonify({"status": "ok", "message": "Server is running"}), 200
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(gyms_bp)
@@ -145,6 +189,7 @@ def create_app():
     app.register_blueprint(trainers_bp)
     app.register_blueprint(contest_bp)
     app.register_blueprint(participants_bp)
+    app.register_blueprint(notification_bp)
 
     # Import models and create tables after everything is registered
     with app.app_context():
@@ -156,6 +201,8 @@ def create_app():
             from models.trainers import Trainer
             from models.contest import Contest
             from models.participants import Participant
+            from models.notification import Notification
+            from models.push_subscription import PushSubscription
 
             # Test database connection
             logger.info("Attempting to connect to database...")
@@ -165,6 +212,17 @@ def create_app():
             logger.error(f"Database initialization error: {str(e)}")
             # Don't fail silently - raise the error so deployment fails if DB is misconfigured
             raise
+
+        # Initialize scheduler for daily expiration checks
+        try:
+            from services.scheduler_service import init_scheduler
+
+            init_scheduler(app)
+            logger.info("Scheduler initialized successfully")
+        except Exception as e:
+            logger.error(f"Scheduler initialization error: {str(e)}")
+            # Don't fail app startup if scheduler fails, but log the error
+            # This allows the app to run even if scheduler dependencies are missing
 
     return app
 

@@ -199,6 +199,12 @@ export const getToken = (): string | null => {
 };
 
 /**
+ * Alias for getToken() for backward compatibility
+ * @deprecated Use getToken() instead
+ */
+export const getAuthToken = getToken;
+
+/**
  * Remove token and logout (sync version - clears local storage only)
  * Clears all token types: access_token, trainer_access_token, member_access_token
  */

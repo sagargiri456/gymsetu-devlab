@@ -23,6 +23,21 @@ gunicorn==23.0.0
 cloudinary==1.41.0
 pillow==10.4.0
 
+# Scheduler for background tasks
+APScheduler==3.10.4
+
+# HTTP requests for keep-alive pings (to prevent Render from spinning down)
+requests==2.32.3
+
+# Push Notifications
+pywebpush==1.14.0
+
+# Cryptography for VAPID key generation
+cryptography==46.0.3
+
+# Date utilities for date calculations
+python-dateutil==2.9.0
+
 # Development Dependencies (optional - for code formatting and git hooks)
 # Uncomment the following lines if you want to include development tools:
 # black==25.9.0

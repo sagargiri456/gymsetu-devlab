@@ -235,6 +235,96 @@ def update_member(current_gym):
     return jsonify({"success": True, "message": "Member updated successfully"}), 200
 
 
+@members_bp.route("/extend_subscription", methods=["POST"])
+@owner_required
+@validate_json_request
+@handle_database_errors
+def extend_subscription(current_gym):
+    """
+    Extend a member's subscription expiration date by a specified number of months.
+    Works for both expired and active members.
+    - If expired: extends from today's date
+    - If active: extends from current expiration_date
+    """
+    data = request.get_json()
+    member_id = data.get("member_id")
+    months = data.get("months")
+
+    if not member_id:
+        return jsonify({"error": "Member ID is required"}), 400
+
+    if not months or not isinstance(months, (int, float)) or months <= 0:
+        return (
+            jsonify({"error": "Valid number of months (greater than 0) is required"}),
+            400,
+        )
+
+    member = Member.query.filter_by(id=member_id, gym_id=current_gym.id).first()
+    if not member:
+        return jsonify({"success": False, "message": "Member not found"}), 404
+
+    # Get current date
+    today = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+
+    # Determine the base date for extension
+    if member.expiration_date:
+        # Parse expiration_date if it's a string
+        if isinstance(member.expiration_date, str):
+            expiration_date = datetime.fromisoformat(
+                member.expiration_date.replace("Z", "+00:00")
+            )
+        else:
+            expiration_date = member.expiration_date
+
+        # Normalize expiration_date to start of day for comparison
+        expiration_date_normalized = expiration_date.replace(
+            hour=0, minute=0, second=0, microsecond=0
+        )
+
+        # If expired, extend from today; if active, extend from current expiration_date
+        if expiration_date_normalized < today:
+            # Member is expired - extend from today
+            base_date = today
+        else:
+            # Member is active - extend from current expiration_date
+            base_date = expiration_date_normalized
+    else:
+        # No expiration_date set - extend from today
+        base_date = today
+
+    # Calculate new expiration date
+    # Add months to the base date
+    try:
+        from dateutil.relativedelta import relativedelta
+
+        new_expiration_date = base_date + relativedelta(months=int(months))
+    except ImportError:
+        # Fallback if dateutil is not available - approximate with days
+        days_to_add = int(months * 30)  # Approximate: 30 days per month
+        new_expiration_date = base_date + timedelta(days=days_to_add)
+
+    # Store previous expiration date for response
+    previous_expiration_date = (
+        member.expiration_date.isoformat() if member.expiration_date else None
+    )
+
+    # Update member's expiration_date
+    member.expiration_date = new_expiration_date
+    db.session.commit()
+
+    return (
+        jsonify(
+            {
+                "success": True,
+                "message": f"Subscription extended by {int(months)} month(s) successfully",
+                "new_expiration_date": new_expiration_date.isoformat(),
+                "previous_expiration_date": previous_expiration_date,
+            }
+        ),
+        200,
+    )
+
+
 @members_bp.route("/delete_member", methods=["DELETE"])
 @owner_required
 def delete_member(current_gym):

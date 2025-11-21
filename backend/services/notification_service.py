@@ -7,6 +7,7 @@ from sqlalchemy import func
 import json
 import logging
 import os
+import base64
 
 logger = logging.getLogger(__name__)
 
@@ -21,10 +22,10 @@ def check_expired_memberships():
         today = date.today()
         logger.info(f"Checking expired memberships for date: {today}")
 
-        # Find all members with expiration_date that has passed
+        # Find all members with expiration_date that has passed (including today)
         expired_members = Member.query.filter(
             Member.expiration_date.isnot(None),
-            func.date(Member.expiration_date) < today,
+            func.date(Member.expiration_date) <= today,
             Member.is_active == True,
         ).all()
 
@@ -96,15 +97,38 @@ def send_push_notifications_for_gym(gym_id, member):
             return
 
         # Get VAPID keys from environment
-        vapid_private_key = os.getenv("VAPID_PRIVATE_KEY")
+        vapid_private_key_raw = os.getenv("VAPID_PRIVATE_KEY")
         vapid_public_key = os.getenv("VAPID_PUBLIC_KEY")
         vapid_subject = os.getenv("VAPID_SUBJECT", "mailto:admin@gymsetu.com")
 
-        if not vapid_private_key or not vapid_public_key:
+        if not vapid_private_key_raw or not vapid_public_key:
             logger.warning(
                 "VAPID keys not configured. Push notifications will not be sent."
             )
             return
+
+        # Decode VAPID private key if it's base64-encoded
+        # pywebpush expects PEM format, so we need to decode if it's base64
+        if vapid_private_key_raw.startswith("-----BEGIN"):
+            # Already in PEM format
+            vapid_private_key = vapid_private_key_raw
+        else:
+            # Assume it's base64 URL-safe encoded, decode it
+            try:
+                # Add padding if needed (base64 URL-safe encoding removes padding)
+                padding = "=" * (4 - len(vapid_private_key_raw) % 4) % 4
+                # Replace URL-safe characters with standard base64 characters
+                base64_key = (
+                    vapid_private_key_raw.replace("-", "+").replace("_", "/") + padding
+                )
+                # Decode from base64
+                vapid_private_key = base64.b64decode(base64_key).decode("utf-8")
+            except Exception as e:
+                logger.error(f"Failed to decode VAPID private key: {str(e)}")
+                logger.error(
+                    "VAPID private key should be in PEM format or base64 URL-safe encoded"
+                )
+                return
 
         # Prepare notification payload
         payload = json.dumps(

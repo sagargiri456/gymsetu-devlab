@@ -39,7 +39,7 @@ with app.app_context():
             else "Not set"
         )
         is_expired = (
-            member.expiration_date and member.expiration_date.date() < date.today()
+            member.expiration_date and member.expiration_date.date() <= date.today()
         )
         status = "EXPIRED" if is_expired else "ACTIVE"
         print(f"  - {member.name} (ID: {member.id}): Expiration: {exp_date} [{status}]")

@@ -850,34 +850,23 @@ def get_gym_by_id():
 
 
 @auth_bp.route("/dashboard_stats", methods=["GET"])
-@jwt_required()
+@owner_required
 @handle_database_errors
-def get_dashboard_stats():
+def get_dashboard_stats(current_gym):
     """Get dashboard statistics for the current gym"""
-    from models.gym import Gym
     from models.members import Member
     from models.trainers import Trainer
     from models.subscription import Subscription
     from models.subscription_plan import SubscriptionPlan
     from datetime import datetime, timedelta
+    import logging
+
+    logger = logging.getLogger(__name__)
 
     try:
-        current_user_id = get_jwt_identity()
-
-        if not current_user_id:
-            return jsonify({"message": "Invalid token: missing identity"}), 401
-
-        # Convert to int if it's a string
-        if isinstance(current_user_id, str):
-            current_user_id = int(current_user_id)
-
-        # Get the gym from database
-        gym = Gym.query.get(current_user_id)
-
-        if not gym:
-            return jsonify({"message": "User not found"}), 404
-
-        gym_id = gym.id
+        # Get gym_id from the current_gym passed by owner_required decorator
+        gym_id = current_gym.id
+        logger.info(f"Fetching dashboard stats for gym_id: {gym_id}")
 
         # Calculate current month start and end
         now = datetime.utcnow()
@@ -885,39 +874,48 @@ def get_dashboard_stats():
         month_end = month_start + timedelta(days=32)
         month_end = month_end.replace(day=1) - timedelta(days=1)
 
-        # Monthly Members (members created in current month)
+        # Monthly Members (members created in current month) - filtered by gym_id
         monthly_members = Member.query.filter(
             Member.gym_id == gym_id,
             Member.created_at >= month_start,
             Member.created_at <= month_end,
         ).count()
+        logger.info(f"Monthly members for gym_id {gym_id}: {monthly_members}")
 
-        # Total Trainers
-        total_trainers = Trainer.query.filter_by(gym_id=gym_id).count()
+        # Total Trainers - filtered by gym_id
+        total_trainers = Trainer.query.filter(Trainer.gym_id == gym_id).count()
+        logger.info(f"Total trainers for gym_id {gym_id}: {total_trainers}")
 
-        # Unpaid Memberships (subscriptions that are expired or not active)
+        # Unpaid Memberships (subscriptions that are expired or not active) - filtered by gym_id
         unpaid_memberships = Subscription.query.filter(
             Subscription.gym_id == gym_id,
             (Subscription.subscription_status != "active")
             | (Subscription.end_date < now),
         ).count()
+        logger.info(f"Unpaid memberships for gym_id {gym_id}: {unpaid_memberships}")
 
-        # Total Income (sum of prices from active subscriptions)
+        # Total Income (sum of prices from active subscriptions) - filtered by gym_id
         # Get all active subscriptions and their plan prices
         active_subscriptions = Subscription.query.filter(
             Subscription.gym_id == gym_id,
             Subscription.subscription_status == "active",
             Subscription.end_date >= now,
         ).all()
+        logger.info(
+            f"Active subscriptions for gym_id {gym_id}: {len(active_subscriptions)}"
+        )
 
         total_income = 0
         for subscription in active_subscriptions:
-            # Get the subscription plan price
-            plan = SubscriptionPlan.query.filter_by(
-                name=subscription.subscription_plan, gym_id=gym_id
+            # Get the subscription plan price - filtered by gym_id
+            plan = SubscriptionPlan.query.filter(
+                SubscriptionPlan.name == subscription.subscription_plan,
+                SubscriptionPlan.gym_id == gym_id,
             ).first()
             if plan:
                 total_income += plan.price
+
+        logger.info(f"Total income for gym_id {gym_id}: {total_income}")
 
         # Format income (convert to K format if > 1000)
         income_display = (

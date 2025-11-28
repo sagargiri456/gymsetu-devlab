@@ -154,9 +154,16 @@ export const fetchDashboardStats = async (): Promise<DashboardStats | null> => {
 
 /**
  * Get dashboard stats (from cache or fetch from API)
+ * @param forceRefresh - If true, bypass cache and fetch fresh data
  * @returns Promise that resolves with stats or null
  */
-export const getDashboardStatsData = async (): Promise<DashboardStats | null> => {
+export const getDashboardStatsData = async (forceRefresh: boolean = false): Promise<DashboardStats | null> => {
+  // If force refresh, clear cache and fetch fresh data
+  if (forceRefresh) {
+    clearDashboardStats();
+    return await fetchDashboardStats();
+  }
+  
   // First try to get from cache
   const cachedStats = getDashboardStats();
   if (cachedStats) return cachedStats;

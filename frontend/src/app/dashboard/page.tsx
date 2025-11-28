@@ -76,9 +76,10 @@ const DashboardPage: React.FC = () => {
   // Get user data and stats on mount
   useEffect(() => {
     const loadData = async () => {
+      // Always fetch fresh stats to ensure gym-specific data
       const [user, stats] = await Promise.all([
         getCurrentUser(),
-        getDashboardStatsData(),
+        getDashboardStatsData(true), // Force refresh to get gym-specific data
       ]);
       setUserData(user);
       setDashboardStats(stats);

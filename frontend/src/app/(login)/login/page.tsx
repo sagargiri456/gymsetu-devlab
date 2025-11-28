@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { getApiUrl } from "@/lib/api";
-import { isAuthenticated, verifyToken, setUserData } from "@/lib/auth";
+import { isAuthenticated, verifyToken, setUserData, clearDashboardStats } from "@/lib/auth";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -42,6 +42,9 @@ export default function LoginPage() {
         const data = await response.json();
         console.log(data.access_token);
         localStorage.setItem("access_token", data.access_token);
+        
+        // Clear dashboard stats cache to ensure fresh gym-specific data
+        clearDashboardStats();
         
         // Store user data in cookies if available
         if (data.user) {

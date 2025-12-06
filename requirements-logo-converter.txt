@@ -1,0 +1,5 @@
+# Requirements for Logo to Favicon Converter
+# Install with: pip install -r requirements-logo-converter.txt
+
+Pillow>=10.0.0
+

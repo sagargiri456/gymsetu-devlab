@@ -11,6 +11,8 @@ export interface Notification {
   is_read: boolean;
   created_at: string;
   member_name?: string | null;
+  member_phone?: string | null;
+  member_dp_link?: string | null;
 }
 
 export interface NotificationResponse {

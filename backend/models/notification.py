@@ -27,4 +27,6 @@ class Notification(db.Model):
             "is_read": self.is_read,
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "member_name": self.member.name if self.member else None,
+            "member_phone": self.member.phone if self.member else None,
+            "member_dp_link": self.member.dp_link if self.member else None,
         }

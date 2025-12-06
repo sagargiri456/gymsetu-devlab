@@ -15,6 +15,23 @@ import { logoutUser, getCurrentUser, UserData, fetchGymProfile, GymProfile, isMe
 import { fetchMemberProfile } from "@/lib/memberApi";
 import { getNotifications, getUnreadCount, markAsRead, markAllAsRead, Notification, subscribePushNotifications } from "@/lib/notificationApi";
 import { registerServiceWorker, subscribeToPushNotifications, requestNotificationPermission } from "@/lib/pushNotifications";
+import MemberModal from "@/app/dashboard/members/MemberModal";
+import { getApiUrl } from "@/lib/api";
+import { getToken } from "@/lib/auth";
+
+interface Member {
+  id: number;
+  name: string;
+  email: string;
+  phone: string;
+  address: string;
+  city: string;
+  dp_link?: string | null;
+  state: string;
+  zip: string;
+  created_at: string;
+  expiration_date?: string | null;
+}
 
 // Styled Components for Dark Mode Toggle
 const StyledWrapper = styled.div`
@@ -212,6 +229,8 @@ const Topbar: React.FC<TopbarProps> = ({ onMenuClick }) => {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [notificationCount, setNotificationCount] = useState(0);
   const [notificationDropdownOpen, setNotificationDropdownOpen] = useState(false);
+  const [selectedMember, setSelectedMember] = useState<Member | null>(null);
+  const [memberModalOpen, setMemberModalOpen] = useState(false);
   const profileDropdownRef = useRef<HTMLDivElement>(null);
   const notificationDropdownRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
@@ -377,7 +396,7 @@ const Topbar: React.FC<TopbarProps> = ({ onMenuClick }) => {
     }
   };
 
-  const handleNotificationClick = () => {
+  const handleNotificationIconClick = () => {
     setNotificationDropdownOpen(!notificationDropdownOpen);
   };
 
@@ -415,6 +434,46 @@ const Topbar: React.FC<TopbarProps> = ({ onMenuClick }) => {
     if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h ago`;
     if (diffInSeconds < 604800) return `${Math.floor(diffInSeconds / 86400)}d ago`;
     return date.toLocaleDateString();
+  };
+
+  const handleNotificationClick = async (notification: Notification) => {
+    // Mark as read if unread
+    if (!notification.is_read) {
+      await handleMarkAsRead(notification.id);
+    }
+
+    // If it's a subscription_expired notification and has member_id, fetch member details
+    if (notification.type === 'subscription_expired' && notification.member_id) {
+      try {
+        const token = getToken();
+        if (!token) {
+          console.error('Not authenticated');
+          return;
+        }
+
+        const response = await fetch(
+          `${getApiUrl('api/members/get_member_by_id')}?member_id=${notification.member_id}`,
+          {
+            method: 'GET',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`,
+            },
+          }
+        );
+
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success && data.member) {
+            setSelectedMember(data.member);
+            setMemberModalOpen(true);
+            setNotificationDropdownOpen(false);
+          }
+        }
+      } catch (error) {
+        console.error('Failed to fetch member details:', error);
+      }
+    }
   };
 
   const handleLanguageClick = () => {
@@ -472,7 +531,7 @@ const Topbar: React.FC<TopbarProps> = ({ onMenuClick }) => {
           {!isMemberUser && !isTrainerUser && (
             <div className="relative" ref={notificationDropdownRef}>
               <button 
-                onClick={handleNotificationClick}
+                onClick={handleNotificationIconClick}
                 className="relative text-gray-700 p-3 rounded-full bg-[#ecf0f3] shadow-[4px_4px_8px_#cbced1,-4px_-4px_8px_#ffffff] hover:shadow-[inset_4px_4px_8px_#cbced1,inset_-4px_-4px_8px_#ffffff] transition-all"
                 title="Notifications"
               >
@@ -511,24 +570,49 @@ const Topbar: React.FC<TopbarProps> = ({ onMenuClick }) => {
                           className={`p-4 border-b border-gray-300 border-opacity-30 hover:bg-gray-50 cursor-pointer transition-colors ${
                             !notification.is_read ? 'bg-blue-50' : ''
                           }`}
-                          onClick={() => !notification.is_read && handleMarkAsRead(notification.id)}
+                          onClick={() => handleNotificationClick(notification)}
                         >
                           <div className="flex items-start space-x-3">
                             {!notification.is_read && (
                               <span className="w-2 h-2 bg-blue-500 rounded-full mt-2 flex-shrink-0"></span>
                             )}
+                            {/* Member Display Picture */}
+                            {notification.type === 'subscription_expired' && notification.member_dp_link && (
+                              <div className="flex-shrink-0">
+                                <img
+                                  src={notification.member_dp_link}
+                                  alt={notification.member_name || 'Member'}
+                                  className="w-12 h-12 rounded-full object-cover"
+                                  onError={(e) => {
+                                    e.currentTarget.style.display = 'none';
+                                  }}
+                                />
+                              </div>
+                            )}
+                            {notification.type === 'subscription_expired' && !notification.member_dp_link && (
+                              <div className="flex-shrink-0 w-12 h-12 rounded-full bg-[#ecf0f3] flex items-center justify-center">
+                                <MdAccountCircle size={24} className="text-gray-600" />
+                              </div>
+                            )}
                             <div className="flex-1 min-w-0">
                               <p className="text-sm font-semibold text-gray-900">
                                 {notification.title}
                               </p>
+                              {notification.type === 'subscription_expired' && notification.member_name && (
+                                <div className="mt-1 space-y-0.5">
+                                  <p className="text-sm font-medium text-gray-800">
+                                    {notification.member_name}
+                                  </p>
+                                  {notification.member_phone && (
+                                    <p className="text-xs text-gray-600">
+                                      {notification.member_phone}
+                                    </p>
+                                  )}
+                                </div>
+                              )}
                               <p className="text-sm text-gray-700 mt-1">
                                 {notification.message}
                               </p>
-                              {notification.member_name && (
-                                <p className="text-xs text-gray-500 mt-1">
-                                  Member: {notification.member_name}
-                                </p>
-                              )}
                               <p className="text-xs text-gray-500 mt-2">
                                 {formatNotificationTime(notification.created_at)}
                               </p>
@@ -658,6 +742,17 @@ const Topbar: React.FC<TopbarProps> = ({ onMenuClick }) => {
           </div>
         </div>
       </div>
+
+      {/* Member Details Modal */}
+      {memberModalOpen && selectedMember && (
+        <MemberModal
+          member={selectedMember}
+          onClose={() => {
+            setMemberModalOpen(false);
+            setSelectedMember(null);
+          }}
+        />
+      )}
     </header>
   );
 };

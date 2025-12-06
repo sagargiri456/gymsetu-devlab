@@ -135,12 +135,16 @@ def send_push_notifications_for_gym(gym_id, member):
             {
                 "title": "Member Subscription Expired",
                 "body": f"Member {member.name} subscription has expired.",
-                "icon": "/images/logo.svg",
+                "icon": member.dp_link if member.dp_link else "/images/logo.svg",
                 "badge": "/images/logo.svg",
+                "image": member.dp_link if member.dp_link else None,
                 "data": {
                     "member_id": member.id,
                     "gym_id": gym_id,
                     "type": "subscription_expired",
+                    "member_name": member.name,
+                    "member_phone": member.phone,
+                    "member_dp_link": member.dp_link,
                 },
             }
         )
